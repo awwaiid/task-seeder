@@ -83,7 +83,7 @@
                        placeholder="Enter a name for this ranking session">
             </div>
             
-            <p><strong>Total matches needed:</strong> {{ calculateTotalMatches() }}</p>
+            <p><strong>Total matches needed:</strong> {{ calculateTotalMatchesForUI() }}</p>
             <button @click="startBracketology" :disabled="!taskNameColumn || !tournamentName.trim()">Start Task Ranking</button>
         </div>
     </div>
@@ -152,6 +152,16 @@ import { ref, computed, onMounted } from 'vue';
 import Papa from 'papaparse';
 import TournamentProgress from './TournamentProgress.vue';
 import TaskMatchup from './TaskMatchup.vue';
+import {
+    calculateTotalMatches,
+    shuffleArray,
+    createTournamentBracket,
+    getCurrentMatchup,
+    advanceWinner,
+    isTournamentComplete,
+    autoDetectTaskNameColumn,
+    autoSelectSecondaryFields
+} from '../utils/tournament.js';
 
 // State
 const currentPhase = ref('setup');
@@ -176,13 +186,7 @@ const availableSecondaryFields = computed(() => {
 });
 
 const currentPair = computed(() => {
-    if (bracket.value.length === 0 || 
-        currentRound.value >= bracket.value.length || 
-        currentMatchup.value >= bracket.value[currentRound.value].length) {
-        return [null, null];
-    }
-    
-    return bracket.value[currentRound.value][currentMatchup.value].teams;
+    return getCurrentMatchup(bracket.value, currentRound.value, currentMatchup.value);
 });
 
 const finalRankings = computed(() => {
@@ -245,24 +249,11 @@ function processFile(file) {
             csvData.value = results.data;
             csvHeaders.value = results.meta.fields || Object.keys(results.data[0] || {});
             
-            // Auto-select task name column
-            const nameColumns = ['name', 'title', 'task', 'summary', 'Name', 'Title', 'Task', 'Summary'];
-            const foundColumn = csvHeaders.value.find(header => 
-                nameColumns.some(col => header.toLowerCase().includes(col.toLowerCase()))
-            );
-            if (foundColumn) {
-                taskNameColumn.value = foundColumn;
-            } else if (csvHeaders.value.length > 0) {
-                taskNameColumn.value = csvHeaders.value[0];
-            }
+            // Auto-select task name column using utility function
+            taskNameColumn.value = autoDetectTaskNameColumn(csvHeaders.value);
             
-            // Auto-select secondary fields
-            const commonFields = ['Assignee', 'Status', 'Product area', 'Sprint', 'Priority', 'Due Date'];
-            const autoSelectedFields = csvHeaders.value.filter(header => 
-                header !== taskNameColumn.value && 
-                commonFields.some(common => header.toLowerCase().includes(common.toLowerCase()))
-            );
-            selectedSecondaryFields.value = autoSelectedFields.slice(0, 4);
+            // Auto-select secondary fields using utility function
+            selectedSecondaryFields.value = autoSelectSecondaryFields(csvHeaders.value, taskNameColumn.value);
             
             // Generate default tournament name
             tournamentName.value = `Task Ranking ${new Date().toLocaleDateString()}`;
@@ -273,10 +264,8 @@ function processFile(file) {
     });
 }
 
-function calculateTotalMatches() {
-    const taskCount = csvData.value.length;
-    return taskCount > 0 ? taskCount - 1 : 0;
-}
+// Use utility function for calculating total matches
+const calculateTotalMatchesForUI = () => calculateTotalMatches(csvData.value.length);
 
 function startBracketology() {
     if (!taskNameColumn.value || !tournamentName.value.trim()) {
@@ -297,74 +286,19 @@ function startBracketology() {
         tasks.value = shuffleArray(tasks.value);
     }
     
-    // Create the tournament bracket
-    createBracket(tasks.value);
+    // Create the tournament bracket using utility function
+    bracket.value = createTournamentBracket(tasks.value);
     
     // Set counters
     currentRound.value = 0;
     currentMatchup.value = 0;
     completedMatches.value = 0;
-    totalMatches.value = calculateTotalMatches();
+    totalMatches.value = calculateTotalMatches(tasks.value.length);
     
     // Move to matchup phase
     currentPhase.value = 'matchups';
 }
 
-function createBracket(tasksList) {
-    console.log('Creating bracket with', tasksList.length, 'tasks');
-    bracket.value = [];
-    
-    // Calculate bracket size (power of 2)
-    const participantCount = tasksList.length;
-    let bracketSize = 1;
-    while (bracketSize < participantCount) {
-        bracketSize *= 2;
-    }
-    
-    // Create seeded participant list with proper tournament seeding
-    const seededParticipants = [];
-    
-    // Fill bracket with participants and nulls for byes
-    for (let i = 0; i < bracketSize; i++) {
-        seededParticipants.push(i < tasksList.length ? tasksList[i] : null);
-    }
-    
-    // Apply tournament seeding pattern (1 vs last, 2 vs second-to-last, etc.)
-    const firstRound = [];
-    for (let i = 0; i < bracketSize / 2; i++) {
-        const topSeed = seededParticipants[i];
-        const bottomSeed = seededParticipants[bracketSize - 1 - i];
-        
-        firstRound.push({
-            teams: [topSeed, bottomSeed],
-            winner: null
-        });
-    }
-    
-    bracket.value.push(firstRound);
-    
-    // Create subsequent rounds
-    let matchesInRound = bracketSize / 4;
-    while (matchesInRound >= 1) {
-        const round = [];
-        for (let i = 0; i < matchesInRound; i++) {
-            round.push({
-                teams: [null, null],
-                winner: null
-            });
-        }
-        bracket.value.push(round);
-        matchesInRound /= 2;
-    }
-    
-    console.log('Bracket created with', bracket.value.length, 'rounds');
-    console.log('First round matchups:');
-    firstRound.forEach((match, index) => {
-        const task1Name = match.teams[0] ? getTaskTitle(match.teams[0]) : 'BYE';
-        const task2Name = match.teams[1] ? getTaskTitle(match.teams[1]) : 'BYE';
-        console.log(`Match ${index + 1}: ${task1Name} vs ${task2Name}`);
-    });
-}
 
 function chooseWinner(winnerIndex) {
     const match = bracket.value[currentRound.value][currentMatchup.value];
@@ -374,21 +308,13 @@ function chooseWinner(winnerIndex) {
     match.winner = winner;
     
     // Advance winner to next round
-    advanceWinner(winner);
+    advanceWinner(bracket.value, winner, currentRound.value, currentMatchup.value);
     
     // Move to next match
     completedMatches.value++;
     moveToNextMatch();
 }
 
-function advanceWinner(winner) {
-    if (currentRound.value >= bracket.value.length - 1) return;
-    
-    const nextRoundMatchIndex = Math.floor(currentMatchup.value / 2);
-    const nextRoundTeamIndex = currentMatchup.value % 2;
-    
-    bracket.value[currentRound.value + 1][nextRoundMatchIndex].teams[nextRoundTeamIndex] = winner;
-}
 
 function moveToNextMatch() {
     currentMatchup.value++;
@@ -397,7 +323,7 @@ function moveToNextMatch() {
         currentRound.value++;
         currentMatchup.value = 0;
         
-        if (currentRound.value >= bracket.value.length) {
+        if (isTournamentComplete(bracket.value, currentRound.value)) {
             currentPhase.value = 'results';
             return;
         }
@@ -407,7 +333,7 @@ function moveToNextMatch() {
     const currentMatch = bracket.value[currentRound.value][currentMatchup.value];
     if (!currentMatch.teams[0] || !currentMatch.teams[1]) {
         currentMatch.winner = currentMatch.teams[0] || currentMatch.teams[1];
-        advanceWinner(currentMatch.winner);
+        advanceWinner(bracket.value, currentMatch.winner, currentRound.value, currentMatchup.value);
         // Don't increment completedMatches for byes - they're not real matches
         moveToNextMatch();
     }
@@ -476,14 +402,6 @@ function exportResults() {
     }
 }
 
-function shuffleArray(array) {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-}
 
 function restartBracketology() {
     if (confirm('Are you sure you want to start over?')) {
