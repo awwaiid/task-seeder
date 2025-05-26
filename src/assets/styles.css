@@ -1,0 +1,258 @@
+:root {
+    --primary: #2c3e50;
+    --secondary: #3498db;
+    --accent: #e74c3c;
+    --success: #27ae60;
+    --warning: #f39c12;
+    --light: #ecf0f1;
+    --dark: #2c3e50;
+    --border: #bdc3c7;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: var(--dark);
+    background-color: var(--light);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1, h2, h3 {
+    color: var(--primary);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid var(--secondary);
+    padding-bottom: 10px;
+}
+
+.container {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 20px;
+}
+
+.file-upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: var(--secondary);
+}
+
+.file-upload-area.dragover {
+    border-color: var(--secondary);
+    background-color: #f8f9fa;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+button {
+    background-color: var(--secondary);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+    margin: 5px;
+}
+
+button:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+button.accent {
+    background-color: var(--accent);
+}
+
+button.accent:hover {
+    background-color: #c0392b;
+}
+
+button.success {
+    background-color: var(--success);
+}
+
+button.success:hover {
+    background-color: #229954;
+}
+
+.task-choice {
+    display: flex;
+    justify-content: space-between;
+    margin: 40px 0;
+    gap: 20px;
+}
+
+.task-button {
+    flex: 1;
+    padding: 25px;
+    font-size: 16px;
+    background-color: white;
+    color: var(--dark);
+    border: 2px solid var(--secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.3s;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.task-button:hover {
+    background-color: white;
+    color: var(--dark);
+    transform: none;
+}
+
+.task-button:active {
+    transform: translateY(-1px);
+    border-color: var(--accent);
+}
+
+.task-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: var(--primary);
+}
+
+.task-details {
+    font-size: 13px;
+    color: #7f8c8d;
+    line-height: 1.4;
+    margin-top: 8px;
+}
+
+.task-field {
+    margin-bottom: 4px;
+    display: flex;
+    gap: 8px;
+}
+
+.task-field-label {
+    font-weight: 600;
+    color: #5a6c7d;
+    min-width: fit-content;
+}
+
+.task-field-value {
+    color: #2c3e50;
+}
+
+.progress {
+    margin: 20px 0;
+    background-color: #ddd;
+    border-radius: 6px;
+    height: 12px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--secondary);
+    transition: width 0.3s;
+}
+
+.vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--accent);
+    min-width: 60px;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.results-table th, .results-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.results-table th {
+    background-color: var(--secondary);
+    color: white;
+    font-weight: 600;
+}
+
+.results-table tr:nth-child(even) {
+    background-color: #f9f9fa;
+}
+
+.results-table tr:hover {
+    background-color: #e8f4f8;
+}
+
+.data-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 12px;
+}
+
+.data-preview table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-preview th,
+.data-preview td {
+    padding: 5px;
+    border: 1px solid #ddd;
+    font-size: 11px;
+}
+
+.data-preview th {
+    background-color: #e9ecef;
+    font-weight: 600;
+}
+
+.debug-info {
+    background: #f0f0f0;
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 12px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Consolas', monospace;
+}
+
+@media (max-width: 768px) {
+    .task-choice {
+        flex-direction: column;
+    }
+    
+    .vs {
+        margin: 15px 0;
+    }
+}
