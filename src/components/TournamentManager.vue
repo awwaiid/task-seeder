@@ -66,7 +66,7 @@
                 <div style="display: flex; gap: 20px; margin-top: 10px;">
                     <label style="display: flex; align-items: center; gap: 8px;">
                         <input type="radio" v-model="seedingMethod" value="order">
-                        <span>Use file order (first task = #1 seed)</span>
+                        <span>Tournament seeding (1st vs last, 2nd vs 2nd-to-last, etc.)</span>
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px;">
                         <input type="radio" v-model="seedingMethod" value="random">
@@ -321,16 +321,22 @@ function createBracket(tasksList) {
         bracketSize *= 2;
     }
     
-    // Create first round
-    const firstRound = [];
-    let remainingTasks = [...tasksList];
+    // Create seeded participant list with proper tournament seeding
+    const seededParticipants = [];
     
+    // Fill bracket with participants and nulls for byes
+    for (let i = 0; i < bracketSize; i++) {
+        seededParticipants.push(i < tasksList.length ? tasksList[i] : null);
+    }
+    
+    // Apply tournament seeding pattern (1 vs last, 2 vs second-to-last, etc.)
+    const firstRound = [];
     for (let i = 0; i < bracketSize / 2; i++) {
-        const team1 = remainingTasks.shift() || null;
-        const team2 = remainingTasks.shift() || null;
+        const topSeed = seededParticipants[i];
+        const bottomSeed = seededParticipants[bracketSize - 1 - i];
         
         firstRound.push({
-            teams: [team1, team2],
+            teams: [topSeed, bottomSeed],
             winner: null
         });
     }
@@ -352,6 +358,12 @@ function createBracket(tasksList) {
     }
     
     console.log('Bracket created with', bracket.value.length, 'rounds');
+    console.log('First round matchups:');
+    firstRound.forEach((match, index) => {
+        const task1Name = match.teams[0] ? getTaskTitle(match.teams[0]) : 'BYE';
+        const task2Name = match.teams[1] ? getTaskTitle(match.teams[1]) : 'BYE';
+        console.log(`Match ${index + 1}: ${task1Name} vs ${task2Name}`);
+    });
 }
 
 function chooseWinner(winnerIndex) {
