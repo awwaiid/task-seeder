@@ -1,1 +1,2 @@
 - Never ever use waitForTimeout (or sleeps) in playwright tests. Instead wait for specific content to be on the screen
+- Feel free to use `rg` (ripgrep) for codebase searches, it works great

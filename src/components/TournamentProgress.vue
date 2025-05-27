@@ -1,6 +1,6 @@
 <template>
     <div>
-        <h2>Round {{ currentRound + 1 }} of {{ totalRounds }}, Match {{ currentMatchup + 1 }} of {{ currentRoundMatches }} - {{ tournamentName }}</h2>
+        <h2>Round {{ currentRound + 1 }} of {{ totalRounds }}, Match {{ currentRoundMatch + 1 }} of {{ currentRoundMatches }} - {{ tournamentName }}</h2>
         <div class="progress">
             <div class="progress-bar" :style="{width: progressPercentage + '%'}"></div>
         </div>
@@ -27,7 +27,11 @@ const props = defineProps({
     completedMatches: Number,
     totalMatches: Number,
     tournamentName: String,
-    taskCount: Number
+    taskCount: Number,
+    currentRoundMatch: {
+        type: Number,
+        default: 0
+    }
 });
 
 const totalRounds = computed(() => {
@@ -42,7 +46,7 @@ const totalRounds = computed(() => {
 });
 
 const currentRoundMatches = computed(() => {
-    // Calculate matches for any round based on participants
+    // Calculate user-visible matches for current round
     if (!props.taskCount) return 0;
     
     let participants = props.taskCount;
@@ -52,7 +56,7 @@ const currentRoundMatches = computed(() => {
     }
     
     // Number of matches = floor(participants / 2)
-    // The odd participant (if any) gets a bye
+    // The odd participant (if any) gets a bye (not shown to user)
     return Math.floor(participants / 2);
 });
 

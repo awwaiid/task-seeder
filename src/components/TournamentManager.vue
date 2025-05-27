@@ -94,10 +94,11 @@
             data-testid="tournament-progress"
             :current-round="currentRound"
             :current-matchup="currentMatchup"
-            :completed-matches="completedMatches"
-            :total-matches="totalMatches"
+            :completed-matches="userVisibleMatches"
+            :total-matches="totalUserVisibleMatches"
             :tournament-name="tournamentName"
             :task-count="tasks.length"
+            :current-round-match="currentRoundMatchNumber"
         />
         
         <task-matchup 
@@ -179,6 +180,7 @@ const currentRound = ref(0);
 const currentMatchup = ref(0);
 const completedMatches = ref(0);
 const totalMatches = ref(0);
+const userVisibleMatches = ref(0); // Count of matches actually shown to the user
 const isDragOver = ref(false);
 const fileInput = ref(null);
 
@@ -189,6 +191,42 @@ const availableSecondaryFields = computed(() => {
 
 const currentPair = computed(() => {
     return getCurrentMatchup(bracket.value, currentRound.value, currentMatchup.value);
+});
+
+const totalUserVisibleMatches = computed(() => {
+    // Calculate how many matches will actually be shown to the user
+    // This is total matches minus bye matches
+    if (!tasks.value.length) return 0;
+    
+    const participantCount = tasks.value.length;
+    let bracketSize = 1;
+    while (bracketSize < participantCount) {
+        bracketSize *= 2;
+    }
+    
+    // Number of bye matches = bracketSize - participantCount
+    const byeCount = bracketSize - participantCount;
+    const totalMatches = calculateTotalMatches(participantCount);
+    
+    // User visible matches = total matches - bye matches  
+    return totalMatches - byeCount;
+});
+
+const currentRoundMatchNumber = computed(() => {
+    // Simple approach: count how many user-visible matches we've seen before the current one
+    if (!bracket.value.length || currentRound.value >= bracket.value.length) return 0;
+    
+    let visibleMatches = 0;
+    for (let i = 0; i < currentMatchup.value; i++) {
+        if (i < bracket.value[currentRound.value].length) {
+            const match = bracket.value[currentRound.value][i];
+            if (match.teams[0] && match.teams[1]) {
+                visibleMatches++;
+            }
+        }
+    }
+    
+    return visibleMatches; // 0-indexed, so first visible match is 0
 });
 
 const finalRankings = computed(() => {
@@ -296,9 +334,13 @@ function startBracketology() {
     currentMatchup.value = 0;
     completedMatches.value = 0;
     totalMatches.value = calculateTotalMatches(tasks.value.length);
+    userVisibleMatches.value = 0;
     
     // Move to matchup phase
     currentPhase.value = 'matchups';
+    
+    // Skip any initial bye matches
+    skipByeMatches();
 }
 
 
@@ -314,6 +356,7 @@ function chooseWinner(winnerIndex) {
     
     // Move to next match
     completedMatches.value++;
+    userVisibleMatches.value++; // Increment user-visible matches counter
     moveToNextMatch();
 }
 
@@ -331,13 +374,38 @@ function moveToNextMatch() {
         }
     }
     
-    // Skip matches with byes (but don't count them as completed matches)
-    const currentMatch = bracket.value[currentRound.value][currentMatchup.value];
-    if (!currentMatch.teams[0] || !currentMatch.teams[1]) {
-        currentMatch.winner = currentMatch.teams[0] || currentMatch.teams[1];
-        advanceWinner(bracket.value, currentMatch.winner, currentRound.value, currentMatchup.value);
-        // Don't increment completedMatches for byes - they're not real matches
-        moveToNextMatch();
+    // Skip any bye matches
+    skipByeMatches();
+}
+
+function skipByeMatches() {
+    // Continue skipping until we find a match with two real opponents or tournament is complete
+    while (currentRound.value < bracket.value.length) {
+        const currentMatch = bracket.value[currentRound.value][currentMatchup.value];
+        
+        // If both teams exist, this is a real match - stop here
+        if (currentMatch.teams[0] && currentMatch.teams[1]) {
+            break;
+        }
+        
+        // This is a bye match - automatically advance the non-null team
+        if (currentMatch.teams[0] || currentMatch.teams[1]) {
+            currentMatch.winner = currentMatch.teams[0] || currentMatch.teams[1];
+            advanceWinner(bracket.value, currentMatch.winner, currentRound.value, currentMatchup.value);
+        }
+        
+        // Move to next match
+        currentMatchup.value++;
+        
+        if (currentMatchup.value >= bracket.value[currentRound.value].length) {
+            currentRound.value++;
+            currentMatchup.value = 0;
+            
+            if (isTournamentComplete(bracket.value, currentRound.value)) {
+                currentPhase.value = 'results';
+                return;
+            }
+        }
     }
 }
 
@@ -419,6 +487,7 @@ function restartBracketology() {
         currentMatchup.value = 0;
         completedMatches.value = 0;
         totalMatches.value = 0;
+        userVisibleMatches.value = 0;
         seedingMethod.value = 'order';
     }
 }

@@ -315,7 +315,8 @@ describe('TournamentProgress Component', () => {
                     totalMatches: 63,
                     currentRound: 0,
                     currentMatchup: 15,
-                    completedMatches: 15
+                    completedMatches: 15,
+                    currentRoundMatch: 15 // 16th match in the round (0-indexed)
                 } 
             })
             
