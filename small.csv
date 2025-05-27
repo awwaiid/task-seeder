@@ -1,0 +1,8 @@
+id,name,description
+23,Fix the click bug,There is one situation where when you click everything breaks
+83,Add auth,Add google auth
+283,Fix CLI,the CLI should be improved
+24,Make it sing,Add a music mode
+28,Not too late,Add a system timeout
+29,Make it rhyme,Add some cool lyrics
+31,Make it fun,Add a high score indicator

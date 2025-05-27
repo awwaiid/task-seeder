@@ -1,0 +1,1 @@
+- Never ever use waitForTimeout (or sleeps) in playwright tests. Instead wait for specific content to be on the screen
