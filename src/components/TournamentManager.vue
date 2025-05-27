@@ -250,22 +250,10 @@ const currentPair = computed(() => {
 });
 
 const totalUserVisibleMatches = computed(() => {
-    // Calculate how many matches will actually be shown to the user
-    // This is total matches minus bye matches
+    // In any single-elimination tournament, there are always exactly n-1 matches
+    // because each match eliminates one participant
     if (!tasks.value.length) return 0;
-    
-    const participantCount = tasks.value.length;
-    let bracketSize = 1;
-    while (bracketSize < participantCount) {
-        bracketSize *= 2;
-    }
-    
-    // Number of bye matches = bracketSize - participantCount
-    const byeCount = bracketSize - participantCount;
-    const totalMatches = calculateTotalMatches(participantCount);
-    
-    // User visible matches = total matches - bye matches  
-    return totalMatches - byeCount;
+    return tasks.value.length - 1;
 });
 
 const currentRoundMatchNumber = computed(() => {
