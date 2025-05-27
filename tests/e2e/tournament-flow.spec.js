@@ -131,16 +131,16 @@ test('upload CSV file and start tournament', async ({ page }) => {
   // Verify download filename contains expected pattern
   expect(download.suggestedFilename()).toMatch(/rankings\.csv$/);
   
-  // Verify exact final rankings based on our alphabetical selection strategy
-  // These are the actual results from running the tournament with alphabetical selection
+  // Verify exact final rankings based on proper elimination order
+  // These rankings now reflect actual tournament elimination order, not original CSV position
   const expectedRankings = [
     'Add auth',           // 1st place - won the tournament
-    'Fix CLI',            // 2nd place - lost to "Add auth" in final
-    'Fix the click bug',  // 3rd place
-    'Make it sing',       // 4th place
-    'Not too late',       // 5th place
-    'Make it rhyme',      // 6th place
-    'Make it fun'         // 7th place
+    'Fix CLI',            // 2nd place - lost to "Add auth" in final (last eliminated)
+    'Make it sing',       // 3rd place - eliminated in semifinals
+    'Fix the click bug',  // 4th place - eliminated in semifinals  
+    'Not too late',       // 5th place - eliminated in quarterfinals
+    'Make it rhyme',      // 6th place - eliminated in quarterfinals
+    'Make it fun'         // 7th place - eliminated in first round (first eliminated)
   ];
   
   // Check each ranking position matches expected results

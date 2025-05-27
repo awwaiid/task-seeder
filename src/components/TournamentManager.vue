@@ -235,6 +235,7 @@ const completedMatches = ref(0);
 const totalMatches = ref(0);
 const userVisibleMatches = ref(0); // Count of matches actually shown to the user
 const matchHistory = ref(new Map()); // Map of task -> array of match records
+const eliminationOrder = ref([]); // Array to track elimination order (first eliminated = last place)
 const selectedTaskHistory = ref(null); // Currently selected task for viewing history
 const isDragOver = ref(false);
 const fileInput = ref(null);
@@ -289,28 +290,22 @@ const finalRankings = computed(() => {
     
     const rankings = [];
     
-    // We need to traverse the bracket to determine elimination order
-    // For now, let's create a simple ranking based on when tasks were eliminated
-    // This would need to be enhanced to properly track elimination rounds
-    
-    // Winner is the last remaining task
+    // Winner is the last remaining task (not eliminated)
     if (bracket.value.length > 0) {
         const finalRound = bracket.value[bracket.value.length - 1];
         if (finalRound.length > 0 && finalRound[0].winner) {
             rankings.push(finalRound[0].winner);
-            
-            // Runner-up is the other finalist
-            const finalist1 = finalRound[0].teams[0];
-            const finalist2 = finalRound[0].teams[1];
-            const runnerUp = finalist1 === finalRound[0].winner ? finalist2 : finalist1;
-            if (runnerUp) rankings.push(runnerUp);
         }
     }
     
-    // For now, add remaining tasks in their original order
-    // This is a simplified version - a complete implementation would track elimination order
-    const remainingTasks = tasks.value.filter(task => !rankings.includes(task));
-    rankings.push(...remainingTasks);
+    // Add tasks in reverse elimination order (last eliminated = 2nd place, first eliminated = last place)
+    // The eliminationOrder array contains tasks in the order they were eliminated
+    const reversedEliminations = [...eliminationOrder.value].reverse();
+    rankings.push(...reversedEliminations);
+    
+    // Handle any tasks that somehow weren't recorded (shouldn't happen in normal flow)
+    const unrankedTasks = tasks.value.filter(task => !rankings.includes(task));
+    rankings.push(...unrankedTasks);
     
     return rankings;
 });
@@ -391,8 +386,9 @@ function startBracketology() {
     totalMatches.value = calculateTotalMatches(tasks.value.length);
     userVisibleMatches.value = 0;
     
-    // Initialize match history for all tasks
+    // Initialize match history and elimination tracking for all tasks
     matchHistory.value = new Map();
+    eliminationOrder.value = [];
     tasks.value.forEach(task => {
         matchHistory.value.set(task, []);
     });
@@ -434,6 +430,9 @@ function chooseWinner(winnerIndex) {
     if (matchHistory.value.has(loser)) {
         matchHistory.value.get(loser).push(loserRecord);
     }
+    
+    // Track elimination order (loser is eliminated)
+    eliminationOrder.value.push(loser);
     
     // Advance winner to next round
     advanceWinner(bracket.value, winner, currentRound.value, currentMatchup.value);
@@ -589,6 +588,7 @@ function restartBracketology() {
         totalMatches.value = 0;
         userVisibleMatches.value = 0;
         matchHistory.value = new Map();
+        eliminationOrder.value = [];
         selectedTaskHistory.value = null;
         seedingMethod.value = 'order';
     }
