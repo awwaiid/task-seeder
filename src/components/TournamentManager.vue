@@ -91,6 +91,7 @@
     <!-- Matchup Phase -->
     <div class="container" v-if="currentPhase === 'matchups'">
         <tournament-progress 
+            data-testid="tournament-progress"
             :current-round="currentRound"
             :current-matchup="currentMatchup"
             :completed-matches="completedMatches"
@@ -100,6 +101,7 @@
         />
         
         <task-matchup 
+            data-testid="task-matchup"
             :task1="currentPair[0]"
             :task2="currentPair[1]"
             :task-name-column="taskNameColumn"
@@ -108,7 +110,7 @@
         />
         
         <div style="text-align: center; margin-top: 20px;">
-            <button @click="restartBracketology" class="accent">Start Over</button>
+            <button @click="restartBracketology" data-testid="restart-button" class="accent">Start Over</button>
         </div>
     </div>
     
@@ -142,7 +144,7 @@
             <button @click="exportResults" class="success" style="margin-right: 10px;">
                 📥 Download Rankings CSV
             </button>
-            <button @click="restartBracketology" class="accent">Start Over</button>
+            <button @click="restartBracketology" data-testid="restart-button" class="accent">Start Over</button>
         </div>
     </div>
 </template>
