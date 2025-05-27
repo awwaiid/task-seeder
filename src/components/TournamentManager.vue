@@ -132,13 +132,66 @@
                 <tbody>
                     <tr v-for="(task, index) in finalRankings" :key="index">
                         <td><strong>{{ index + 1 }}</strong></td>
-                        <td>{{ getTaskTitle(task) }}</td>
+                        <td>
+                            {{ getTaskTitle(task) }}
+                            <button 
+                                @click="viewTaskHistory(task)" 
+                                class="history-button"
+                                style="margin-left: 8px; padding: 2px 6px; font-size: 12px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;"
+                                title="View match history"
+                            >
+                                📊
+                            </button>
+                        </td>
                         <td v-for="field in selectedSecondaryFields" :key="field">
                             {{ task[field] || '-' }}
                         </td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+        
+        <!-- Match History Section -->
+        <div v-if="selectedTaskHistory" style="margin-top: 30px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>Match History: {{ getTaskTitle(selectedTaskHistory) }}</h3>
+                <button @click="selectedTaskHistory = null" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                    ✕ Close
+                </button>
+            </div>
+            
+            <div v-if="matchHistory.has(selectedTaskHistory) && matchHistory.get(selectedTaskHistory).length > 0">
+                <div v-for="(match, index) in matchHistory.get(selectedTaskHistory)" :key="index" 
+                     style="background: white; margin-bottom: 8px; padding: 12px; border-radius: 5px; border-left: 4px solid #3498db;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: bold; color: #2c3e50;">Round {{ match.round }}:</span>
+                        
+                        <span v-if="match.result === 'BYE'" style="color: #7f8c8d; font-style: italic;">
+                            Received a bye (automatic advancement)
+                        </span>
+                        
+                        <span v-else style="display: flex; align-items: center; gap: 8px;">
+                            <span>vs</span>
+                            <span style="background: #ecf0f1; padding: 4px 8px; border-radius: 3px;">
+                                {{ getTaskTitle(match.opponent) }}
+                            </span>
+                            <span :style="{
+                                color: match.result === 'W' ? '#27ae60' : '#e74c3c',
+                                fontWeight: 'bold',
+                                padding: '2px 6px',
+                                borderRadius: '3px',
+                                background: match.result === 'W' ? '#d5f4e6' : '#fceaea'
+                            }">
+                                {{ match.result === 'W' ? '🏆 WON' : '❌ LOST' }}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-else style="color: #7f8c8d; font-style: italic;">
+                No matches recorded for this task.
+            </div>
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
@@ -181,6 +234,8 @@ const currentMatchup = ref(0);
 const completedMatches = ref(0);
 const totalMatches = ref(0);
 const userVisibleMatches = ref(0); // Count of matches actually shown to the user
+const matchHistory = ref(new Map()); // Map of task -> array of match records
+const selectedTaskHistory = ref(null); // Currently selected task for viewing history
 const isDragOver = ref(false);
 const fileInput = ref(null);
 
@@ -336,6 +391,12 @@ function startBracketology() {
     totalMatches.value = calculateTotalMatches(tasks.value.length);
     userVisibleMatches.value = 0;
     
+    // Initialize match history for all tasks
+    matchHistory.value = new Map();
+    tasks.value.forEach(task => {
+        matchHistory.value.set(task, []);
+    });
+    
     // Move to matchup phase
     currentPhase.value = 'matchups';
     
@@ -347,9 +408,32 @@ function startBracketology() {
 function chooseWinner(winnerIndex) {
     const match = bracket.value[currentRound.value][currentMatchup.value];
     const winner = match.teams[winnerIndex];
+    const loser = match.teams[1 - winnerIndex];
     
     // Record the winner
     match.winner = winner;
+    
+    // Record match history for both participants
+    const matchRecord = {
+        round: currentRound.value + 1,
+        opponent: loser,
+        result: 'W',
+        matchNumber: userVisibleMatches.value + 1
+    };
+    
+    const loserRecord = {
+        round: currentRound.value + 1,
+        opponent: winner,
+        result: 'L',
+        matchNumber: userVisibleMatches.value + 1
+    };
+    
+    if (matchHistory.value.has(winner)) {
+        matchHistory.value.get(winner).push(matchRecord);
+    }
+    if (matchHistory.value.has(loser)) {
+        matchHistory.value.get(loser).push(loserRecord);
+    }
     
     // Advance winner to next round
     advanceWinner(bracket.value, winner, currentRound.value, currentMatchup.value);
@@ -390,8 +474,20 @@ function skipByeMatches() {
         
         // This is a bye match - automatically advance the non-null team
         if (currentMatch.teams[0] || currentMatch.teams[1]) {
-            currentMatch.winner = currentMatch.teams[0] || currentMatch.teams[1];
-            advanceWinner(bracket.value, currentMatch.winner, currentRound.value, currentMatchup.value);
+            const byeWinner = currentMatch.teams[0] || currentMatch.teams[1];
+            currentMatch.winner = byeWinner;
+            
+            // Record bye in match history
+            if (matchHistory.value.has(byeWinner)) {
+                matchHistory.value.get(byeWinner).push({
+                    round: currentRound.value + 1,
+                    opponent: null,
+                    result: 'BYE',
+                    matchNumber: null
+                });
+            }
+            
+            advanceWinner(bracket.value, byeWinner, currentRound.value, currentMatchup.value);
         }
         
         // Move to next match
@@ -412,6 +508,10 @@ function skipByeMatches() {
 function getTaskTitle(task) {
     if (!task) return 'Untitled Task';
     return task[taskNameColumn.value] || 'Untitled Task';
+}
+
+function viewTaskHistory(task) {
+    selectedTaskHistory.value = task;
 }
 
 function exportResults() {
@@ -488,6 +588,8 @@ function restartBracketology() {
         completedMatches.value = 0;
         totalMatches.value = 0;
         userVisibleMatches.value = 0;
+        matchHistory.value = new Map();
+        selectedTaskHistory.value = null;
         seedingMethod.value = 'order';
     }
 }

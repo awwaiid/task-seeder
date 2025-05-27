@@ -150,4 +150,30 @@ test('upload CSV file and start tournament', async ({ page }) => {
     expect(rankText).toContain(expectedRankings[i]);
     expect(rankText).toContain(`${i + 1}`); // Check rank number
   }
+  
+  // Test match history functionality
+  // Click on the winner's history button
+  const winnerRow = page.locator('tbody tr').first();
+  const historyButton = winnerRow.locator('button.history-button');
+  await expect(historyButton).toBeVisible();
+  await historyButton.click();
+  
+  // Verify match history section appears
+  await expect(page.locator('text=Match History: Add auth')).toBeVisible();
+  
+  // Verify history shows matches (Add auth should have won all its matches)
+  await expect(page.locator('text=🏆 WON')).toHaveCount(3); // Should have 3 wins (rounds 1, 2, 3)
+  
+  // Close history
+  await page.locator('button:has-text("✕ Close")').click();
+  await expect(page.locator('text=Match History:')).toHaveCount(0);
+  
+  // Test a task that lost - check 7th place (Make it fun)
+  const lastRow = page.locator('tbody tr').last();
+  const lastHistoryButton = lastRow.locator('button.history-button');
+  await lastHistoryButton.click();
+  
+  // Verify it shows a loss
+  await expect(page.locator('text=Match History: Make it fun')).toBeVisible();
+  await expect(page.locator('text=❌ LOST')).toHaveCount(1); // Should have 1 loss in round 1
 });
