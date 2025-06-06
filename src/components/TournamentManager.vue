@@ -1,7 +1,39 @@
 <template>
     <!-- Setup Phase -->
     <div class="container" v-if="currentPhase === 'setup'">
-        <h2>Load Your Tasks</h2>
+        <!-- Saved Brackets Section -->
+        <div v-if="savedBrackets.length > 0" style="margin-bottom: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+            <h2>Continue Previous Brackets</h2>
+            <p style="color: #666; margin-bottom: 15px;">Pick up where you left off with your saved bracket tournaments:</p>
+            
+            <div style="display: grid; gap: 12px;">
+                <div v-for="bracket in savedBrackets" :key="bracket.id" 
+                     style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; border: 1px solid #ddd;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; margin-bottom: 4px;">{{ bracket.name }}</div>
+                        <div style="font-size: 12px; color: #666;">
+                            {{ bracket.status === 'results' ? 'Completed' : 'In Progress' }} • 
+                            {{ bracket.csvData?.length || 0 }} tasks • 
+                            {{ bracket.tournamentType === 'double' ? 'Double' : 'Single' }} elimination •
+                            {{ formatDate(bracket.lastModified) }}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button @click="loadBracket(bracket.id)" 
+                                style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            {{ bracket.status === 'results' ? 'View Results' : 'Continue' }}
+                        </button>
+                        <button @click="deleteBracket(bracket.id)" 
+                                style="padding: 6px 8px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                                title="Delete bracket">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Start New Bracket</h2>
         
         <!-- File Upload -->
         <div class="file-upload-area" @click="$refs.fileInput.click()" 
@@ -236,6 +268,7 @@ import Papa from 'papaparse';
 import TournamentProgress from './TournamentProgress.vue';
 import TaskMatchup from './TaskMatchup.vue';
 import { Tournament } from '../utils/TournamentRunner.js';
+import { BracketStorage } from '../utils/BracketStorage.js';
 
 // CSV/UI utility functions
 function shuffleArray(array) {
@@ -295,6 +328,8 @@ const matchHistory = ref(new Map()); // Map of task -> array of match records
 const selectedTaskHistory = ref(null); // Currently selected task for viewing history
 const isDragOver = ref(false);
 const fileInput = ref(null);
+const savedBrackets = ref([]); // List of saved brackets
+const currentBracketId = ref(null); // ID of currently loaded bracket
 
 // Computed
 const availableSecondaryFields = computed(() => {
@@ -452,6 +487,9 @@ function startBracketology() {
     if (tournament.value.isComplete()) {
         currentPhase.value = 'results';
     }
+    
+    // Auto-save the bracket
+    saveBracket();
 }
 
 
@@ -495,6 +533,9 @@ function chooseWinner(winnerIndex) {
     if (tournament.value.isComplete()) {
         currentPhase.value = 'results';
     }
+    
+    // Auto-save the bracket after each match
+    saveBracket();
 }
 
 
@@ -580,6 +621,125 @@ function restartBracketology() {
         matchHistory.value = new Map();
         selectedTaskHistory.value = null;
         seedingMethod.value = 'order';
+        currentBracketId.value = null;
     }
 }
+
+// Bracket management functions
+function loadSavedBrackets() {
+    savedBrackets.value = BracketStorage.getBracketsList();
+}
+
+function loadBracket(bracketId) {
+    try {
+        const bracketData = BracketStorage.loadBracket(bracketId);
+        if (!bracketData) {
+            alert('Bracket not found');
+            return;
+        }
+        
+        const state = BracketStorage.deserializeBracket(bracketData);
+        
+        // Restore all state
+        currentPhase.value = state.status;
+        csvData.value = state.csvData || [];
+        csvHeaders.value = state.csvHeaders || [];
+        taskNameColumn.value = state.taskNameColumn || '';
+        selectedSecondaryFields.value = state.selectedSecondaryFields || [];
+        tournamentType.value = state.tournamentType || 'single';
+        seedingMethod.value = state.seedingMethod || 'order';
+        tournamentName.value = state.name || '';
+        tasks.value = state.tasks || [];
+        currentMatch.value = state.currentMatch;
+        matchHistory.value = state.matchHistory || new Map();
+        currentBracketId.value = bracketId;
+        
+        // Restore tournament with proper Tournament instance
+        if (state.tournament) {
+            tournament.value = new Tournament(state.tournament.type, state.tournament.originalEntrants);
+            // Copy over the tournament state
+            Object.assign(tournament.value, state.tournament);
+            
+            // Restore Maps
+            if (state.tournament.lossCount) {
+                tournament.value.lossCount = new Map(state.tournament.lossCount);
+            }
+            if (state.tournament.matchIndex) {
+                tournament.value.matchIndex = new Map(state.tournament.matchIndex);
+            }
+        }
+        
+        // If we're in matchups phase, check if tournament is complete
+        if (currentPhase.value === 'matchups' && tournament.value && tournament.value.isComplete()) {
+            currentPhase.value = 'results';
+            saveBracket(); // Update the bracket status
+        }
+    } catch (error) {
+        console.error('Error loading bracket:', error);
+        alert('Error loading bracket: ' + error.message);
+    }
+}
+
+function saveBracket() {
+    try {
+        const bracketData = BracketStorage.serializeBracket({
+            tournamentName: tournamentName.value,
+            currentPhase: currentPhase.value,
+            csvData: csvData.value,
+            csvHeaders: csvHeaders.value,
+            taskNameColumn: taskNameColumn.value,
+            selectedSecondaryFields: selectedSecondaryFields.value,
+            tournamentType: tournamentType.value,
+            seedingMethod: seedingMethod.value,
+            tasks: tasks.value,
+            tournament: tournament.value,
+            currentMatch: currentMatch.value,
+            matchHistory: matchHistory.value
+        });
+        
+        if (currentBracketId.value) {
+            // Update existing bracket
+            try {
+                BracketStorage.updateBracket(currentBracketId.value, bracketData);
+            } catch (error) {
+                // If bracket doesn't exist, save as new
+                currentBracketId.value = BracketStorage.saveBracket(bracketData);
+            }
+        } else {
+            // Save new bracket
+            currentBracketId.value = BracketStorage.saveBracket(bracketData);
+        }
+        
+        // Refresh the saved brackets list
+        loadSavedBrackets();
+    } catch (error) {
+        console.error('Error saving bracket:', error);
+    }
+}
+
+function deleteBracket(bracketId) {
+    if (confirm('Are you sure you want to delete this bracket? This action cannot be undone.')) {
+        BracketStorage.deleteBracket(bracketId);
+        loadSavedBrackets();
+        
+        // If we deleted the currently loaded bracket, clear the ID
+        if (currentBracketId.value === bracketId) {
+            currentBracketId.value = null;
+        }
+    }
+}
+
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (error) {
+        return 'Unknown';
+    }
+}
+
+// Initialize saved brackets on mount
+onMounted(() => {
+    loadSavedBrackets();
+});
 </script>

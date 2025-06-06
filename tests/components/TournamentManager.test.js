@@ -10,11 +10,21 @@ vi.mock('papaparse', () => ({
     }
 }))
 
+// Mock localStorage
+const localStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+}
+global.localStorage = localStorageMock
+
 describe('TournamentManager Integration Tests', () => {
     let wrapper
 
     beforeEach(() => {
         vi.clearAllMocks()
+        localStorageMock.getItem.mockReturnValue(null)
         wrapper = mount(TournamentManager)
     })
 
@@ -26,7 +36,7 @@ describe('TournamentManager Integration Tests', () => {
 
     describe('Initial State', () => {
         it('should render in setup phase by default', () => {
-            expect(wrapper.find('h2').text()).toBe('Load Your Tasks')
+            expect(wrapper.find('h2').text()).toBe('Start New Bracket')
             expect(wrapper.find('.file-upload-area').exists()).toBe(true)
             expect(wrapper.find('[data-testid="tournament-progress"]').exists()).toBe(false)
             expect(wrapper.find('[data-testid="task-matchup"]').exists()).toBe(false)

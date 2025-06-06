@@ -102,8 +102,8 @@ test.describe('Double Elimination Tournament', () => {
                     await page.locator('[data-testid="task-matchup"] button').first().click();
                 }
 
-                // Small delay to allow UI updates
-                await page.waitForTimeout(100);
+                // Wait for UI to update by checking for tournament progress
+                await expect(page.locator('[data-testid="tournament-progress"]')).toBeVisible();
             } catch (error) {
                 // If we can't find more matches, we should be at results
                 break;
@@ -203,7 +203,7 @@ test.describe('Double Elimination Tournament', () => {
 
                 await expect(page.locator('[data-testid="task-matchup"]')).toBeVisible({ timeout: 5000 });
                 await page.locator('[data-testid="task-matchup"] button').first().click();
-                await page.waitForTimeout(100);
+                await expect(page.locator('[data-testid="tournament-progress"]')).toBeVisible();
             } catch (error) {
                 break;
             }
