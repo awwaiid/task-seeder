@@ -370,15 +370,11 @@ describe('TournamentManager Integration Tests', () => {
             confirmSpy.mockRestore()
         })
 
-        it('should not restart tournament when cancelled', async () => {
-            // Mock confirm to return false
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
-            
+        it('should restart tournament immediately (no confirmation)', async () => {
             const restartButton = wrapper.find('[data-testid="restart-button"]')
             await restartButton.trigger('click')
             
-            expect(wrapper.vm.currentPhase).toBe('matchups')
-            confirmSpy.mockRestore()
+            expect(wrapper.vm.currentPhase).toBe('setup')
         })
     })
 })

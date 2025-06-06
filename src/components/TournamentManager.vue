@@ -23,6 +23,11 @@
                                 style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                             {{ bracket.status === 'results' ? 'View Results' : 'Continue' }}
                         </button>
+                        <button @click="shareBracket(bracket.id)" 
+                                style="padding: 6px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                                title="Share bracket via URL">
+                            🔗
+                        </button>
                         <button @click="deleteBracket(bracket.id)" 
                                 style="padding: 6px 8px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
                                 title="Delete bracket">
@@ -31,6 +36,29 @@
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- URL Bracket Loaded Notice (only shown if auto-save failed) -->
+        <div v-if="loadedFromURL && currentPhase === 'setup'" style="margin-bottom: 20px; padding: 15px; background-color: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+            <h3 style="margin-top: 0; color: #856404;">Bracket Loaded from Shared URL</h3>
+            <p style="margin-bottom: 10px; color: #666;">We couldn't automatically save this shared bracket to your browser storage. You can save it manually or continue without saving.</p>
+            <button @click="saveCurrentBracketLocally" style="padding: 8px 16px; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                💾 Save Locally
+            </button>
+            <button @click="dismissURLNotice" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Continue Without Saving
+            </button>
+        </div>
+        
+        <!-- Auto-save Success Notice -->
+        <div v-if="showAutoSaveNotice" style="margin-bottom: 20px; padding: 12px 16px; background-color: #d1edff; border-radius: 6px; border-left: 4px solid #0ea5e9; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #0ea5e9; font-size: 16px;">💾</span>
+                <span style="color: #0369a1; font-weight: 500;">Shared bracket automatically saved to your browser!</span>
+            </div>
+            <button @click="showAutoSaveNotice = false" style="background: none; border: none; color: #0369a1; cursor: pointer; padding: 4px; font-size: 18px;" title="Dismiss">
+                ✕
+            </button>
         </div>
         
         <h2>Start New Bracket</h2>
@@ -170,7 +198,7 @@
         />
         
         <div style="text-align: center; margin-top: 20px;">
-            <button @click="restartBracketology" data-testid="restart-button" class="accent">Start Over</button>
+            <button @click="restartBracketology" data-testid="restart-button" class="accent">Home</button>
         </div>
     </div>
     
@@ -257,7 +285,10 @@
             <button @click="exportResults" class="success" style="margin-right: 10px;">
                 📥 Download Rankings CSV
             </button>
-            <button @click="restartBracketology" data-testid="restart-button" class="accent">Start Over</button>
+            <button @click="shareCurrentBracket" style="margin-right: 10px; padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                🔗 Share Results
+            </button>
+            <button @click="restartBracketology" data-testid="restart-button" class="accent">Home</button>
         </div>
     </div>
 </template>
@@ -269,6 +300,7 @@ import TournamentProgress from './TournamentProgress.vue';
 import TaskMatchup from './TaskMatchup.vue';
 import { Tournament } from '../utils/TournamentRunner.js';
 import { BracketStorage } from '../utils/BracketStorage.js';
+import { URLBracketSharing } from '../utils/URLBracketSharing.js';
 
 // CSV/UI utility functions
 function shuffleArray(array) {
@@ -330,6 +362,8 @@ const isDragOver = ref(false);
 const fileInput = ref(null);
 const savedBrackets = ref([]); // List of saved brackets
 const currentBracketId = ref(null); // ID of currently loaded bracket
+const loadedFromURL = ref(false); // Whether current bracket was loaded from URL
+const showAutoSaveNotice = ref(false); // Show auto-save success notice
 
 // Computed
 const availableSecondaryFields = computed(() => {
@@ -608,21 +642,21 @@ function exportResults() {
 
 
 function restartBracketology() {
-    if (confirm('Are you sure you want to start over?')) {
-        currentPhase.value = 'setup';
-        csvData.value = [];
-        csvHeaders.value = [];
-        taskNameColumn.value = '';
-        selectedSecondaryFields.value = [];
-        tournamentName.value = '';
-        tasks.value = [];
-        tournament.value = null;
-        currentMatch.value = null;
-        matchHistory.value = new Map();
-        selectedTaskHistory.value = null;
-        seedingMethod.value = 'order';
-        currentBracketId.value = null;
-    }
+    currentPhase.value = 'setup';
+    csvData.value = [];
+    csvHeaders.value = [];
+    taskNameColumn.value = '';
+    selectedSecondaryFields.value = [];
+    tournamentName.value = '';
+    tasks.value = [];
+    tournament.value = null;
+    currentMatch.value = null;
+    matchHistory.value = new Map();
+    selectedTaskHistory.value = null;
+    seedingMethod.value = 'order';
+    currentBracketId.value = null;
+    loadedFromURL.value = false;
+    showAutoSaveNotice.value = false;
 }
 
 // Bracket management functions
@@ -738,8 +772,226 @@ function formatDate(dateString) {
     }
 }
 
-// Initialize saved brackets on mount
+// URL sharing functions
+function shareBracket(bracketId) {
+    try {
+        const bracketData = BracketStorage.loadBracket(bracketId);
+        if (!bracketData) {
+            alert('Bracket not found');
+            return;
+        }
+        
+        const shareableURL = URLBracketSharing.createShareableURL(bracketData);
+        
+        // Copy to clipboard
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(shareableURL).then(() => {
+                alert('Bracket URL copied to clipboard! Share this link to let others view or continue this bracket.');
+            }).catch(() => {
+                showURLDialog(shareableURL);
+            });
+        } else {
+            showURLDialog(shareableURL);
+        }
+    } catch (error) {
+        console.error('Error sharing bracket:', error);
+        alert('Error creating shareable URL: ' + error.message);
+    }
+}
+
+function shareCurrentBracket() {
+    try {
+        const bracketData = BracketStorage.serializeBracket({
+            tournamentName: tournamentName.value,
+            currentPhase: currentPhase.value,
+            csvData: csvData.value,
+            csvHeaders: csvHeaders.value,
+            taskNameColumn: taskNameColumn.value,
+            selectedSecondaryFields: selectedSecondaryFields.value,
+            tournamentType: tournamentType.value,
+            seedingMethod: seedingMethod.value,
+            tasks: tasks.value,
+            tournament: tournament.value,
+            currentMatch: currentMatch.value,
+            matchHistory: matchHistory.value
+        });
+        
+        const shareableURL = URLBracketSharing.createShareableURL(bracketData);
+        
+        // Copy to clipboard
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(shareableURL).then(() => {
+                alert('Bracket URL copied to clipboard! Share this link to let others view or continue this bracket.');
+            }).catch(() => {
+                showURLDialog(shareableURL);
+            });
+        } else {
+            showURLDialog(shareableURL);
+        }
+    } catch (error) {
+        console.error('Error sharing bracket:', error);
+        alert('Error creating shareable URL: ' + error.message);
+    }
+}
+
+function showURLDialog(url) {
+    const message = `Copy this URL to share the bracket:\n\n${url}`;
+    if (window.prompt) {
+        window.prompt(message, url);
+    } else {
+        alert(message);
+    }
+}
+
+function loadBracketFromURL() {
+    try {
+        const bracketData = URLBracketSharing.extractBracketFromCurrentURL();
+        if (!bracketData) return false;
+        
+        const state = BracketStorage.deserializeBracket(bracketData);
+        
+        // Restore all state
+        currentPhase.value = state.status;
+        csvData.value = state.csvData || [];
+        csvHeaders.value = state.csvHeaders || [];
+        taskNameColumn.value = state.taskNameColumn || '';
+        selectedSecondaryFields.value = state.selectedSecondaryFields || [];
+        tournamentType.value = state.tournamentType || 'single';
+        seedingMethod.value = state.seedingMethod || 'order';
+        tournamentName.value = state.name || '';
+        tasks.value = state.tasks || [];
+        currentMatch.value = state.currentMatch;
+        matchHistory.value = state.matchHistory || new Map();
+        currentBracketId.value = null; // URL brackets don't have local IDs
+        loadedFromURL.value = true; // Mark as loaded from URL
+        
+        // Restore tournament with proper Tournament instance
+        if (state.tournament) {
+            tournament.value = new Tournament(state.tournament.type, state.tournament.originalEntrants);
+            // Copy over the tournament state
+            Object.assign(tournament.value, state.tournament);
+            
+            // Restore Maps
+            if (state.tournament.lossCount) {
+                tournament.value.lossCount = new Map(state.tournament.lossCount);
+            }
+            if (state.tournament.matchIndex) {
+                tournament.value.matchIndex = new Map(state.tournament.matchIndex);
+            }
+        }
+        
+        // If we're in matchups phase, check if tournament is complete
+        if (currentPhase.value === 'matchups' && tournament.value && tournament.value.isComplete()) {
+            currentPhase.value = 'results';
+        }
+        
+        // Auto-save the loaded bracket to localStorage
+        try {
+            // Add a suffix to indicate this was loaded from a shared URL
+            const originalName = tournamentName.value;
+            let sharedName = originalName.includes('(Shared)') ? originalName : `${originalName} (Shared)`;
+            
+            // Check if a bracket with this name already exists and add a number if needed
+            const existingBrackets = BracketStorage.getBracketsList();
+            const existingNames = existingBrackets.map(b => b.name);
+            let counter = 1;
+            let finalName = sharedName;
+            
+            while (existingNames.includes(finalName)) {
+                finalName = `${sharedName} (${counter})`;
+                counter++;
+            }
+            
+            sharedName = finalName;
+            
+            const bracketData = BracketStorage.serializeBracket({
+                tournamentName: sharedName,
+                currentPhase: currentPhase.value,
+                csvData: csvData.value,
+                csvHeaders: csvHeaders.value,
+                taskNameColumn: taskNameColumn.value,
+                selectedSecondaryFields: selectedSecondaryFields.value,
+                tournamentType: tournamentType.value,
+                seedingMethod: seedingMethod.value,
+                tasks: tasks.value,
+                tournament: tournament.value,
+                currentMatch: currentMatch.value,
+                matchHistory: matchHistory.value
+            });
+            
+            // Update the display name to match
+            tournamentName.value = sharedName;
+            
+            currentBracketId.value = BracketStorage.saveBracket(bracketData);
+            loadedFromURL.value = false; // Since we auto-saved it, no need to show the notice
+            
+            // Show success notification
+            showAutoSaveNotice.value = true;
+            
+            // Auto-dismiss the notice after 5 seconds
+            setTimeout(() => {
+                showAutoSaveNotice.value = false;
+            }, 5000);
+            
+            // Refresh the saved brackets list to show the new bracket
+            loadSavedBrackets();
+        } catch (error) {
+            console.error('Error auto-saving URL bracket:', error);
+            // If auto-save fails, still show the manual save option
+            loadedFromURL.value = true;
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error loading bracket from URL:', error);
+        alert('Invalid or corrupted bracket URL: ' + error.message);
+        return false;
+    }
+}
+
+function saveCurrentBracketLocally() {
+    try {
+        // Save the current bracket to localStorage
+        const bracketData = BracketStorage.serializeBracket({
+            tournamentName: tournamentName.value,
+            currentPhase: currentPhase.value,
+            csvData: csvData.value,
+            csvHeaders: csvHeaders.value,
+            taskNameColumn: taskNameColumn.value,
+            selectedSecondaryFields: selectedSecondaryFields.value,
+            tournamentType: tournamentType.value,
+            seedingMethod: seedingMethod.value,
+            tasks: tasks.value,
+            tournament: tournament.value,
+            currentMatch: currentMatch.value,
+            matchHistory: matchHistory.value
+        });
+        
+        currentBracketId.value = BracketStorage.saveBracket(bracketData);
+        loadedFromURL.value = false;
+        loadSavedBrackets(); // Refresh the list
+        
+        alert('Bracket saved locally! You can now access it from the saved brackets list.');
+    } catch (error) {
+        console.error('Error saving bracket locally:', error);
+        alert('Error saving bracket: ' + error.message);
+    }
+}
+
+function dismissURLNotice() {
+    loadedFromURL.value = false;
+}
+
+// Initialize saved brackets on mount and check for URL bracket
 onMounted(() => {
     loadSavedBrackets();
+    
+    // Check if there's a bracket in the URL
+    const urlBracketLoaded = loadBracketFromURL();
+    
+    // If we loaded a bracket from URL, clear the URL parameter for cleaner URLs
+    if (urlBracketLoaded) {
+        URLBracketSharing.clearBracketFromURL();
+    }
 });
 </script>
