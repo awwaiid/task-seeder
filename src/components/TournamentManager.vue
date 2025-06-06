@@ -116,14 +116,16 @@
         <tournament-progress 
             data-testid="tournament-progress"
             :current-round="currentRound"
-            :current-matchup="currentMatchup"
-            :completed-matches="userVisibleMatches"
+            :current-matchup="currentMatchInRound"
+            :completed-matches="currentMatchNumber - 1"
             :total-matches="totalUserVisibleMatches"
             :tournament-name="tournamentName"
             :task-count="tasks.length"
-            :current-round-match="currentRoundMatchNumber"
+            :current-round-match="currentMatchInRound"
             :tournament-type="tournamentType"
             :current-bracket-type="currentBracketType"
+            :total-rounds="totalRounds"
+            :current-round-matches="currentRoundMatches"
         />
         
         <task-matchup 
@@ -233,20 +235,49 @@ import { ref, computed, onMounted } from 'vue';
 import Papa from 'papaparse';
 import TournamentProgress from './TournamentProgress.vue';
 import TaskMatchup from './TaskMatchup.vue';
-import {
-    calculateTotalMatches,
-    shuffleArray,
-    createTournamentBracket,
-    getCurrentMatchup,
-    advanceWinner,
-    isTournamentComplete,
-    autoDetectTaskNameColumn,
-    autoSelectSecondaryFields,
-    createDoubleEliminationBracket,
-    getCurrentDoubleEliminationMatchup,
-    advanceDoubleEliminationWinner,
-    isDoubleEliminationComplete
-} from '../utils/tournament.js';
+import { Tournament } from '../utils/TournamentRunner.js';
+
+// CSV/UI utility functions
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function autoDetectTaskNameColumn(headers) {
+    if (!headers || headers.length === 0) return null;
+    
+    const keywords = ['name', 'title', 'task', 'summary'];
+    
+    // Look for exact matches first (case insensitive)
+    for (const keyword of keywords) {
+        const found = headers.find(header => header.toLowerCase() === keyword);
+        if (found) return found;
+    }
+    
+    // Look for partial matches
+    for (const keyword of keywords) {
+        const found = headers.find(header => header.toLowerCase().includes(keyword));
+        if (found) return found;
+    }
+    
+    return headers[0];
+}
+
+function autoSelectSecondaryFields(headers, taskNameColumn, maxFields = 4) {
+    if (!headers || headers.length === 0) return [];
+    
+    const commonFields = ['Assignee', 'Status', 'Product area', 'Sprint', 'Priority', 'Due Date'];
+    const autoSelectedFields = headers.filter(header => 
+        header !== taskNameColumn && 
+        commonFields.some(common => header.toLowerCase().includes(common.toLowerCase()))
+    );
+    
+    return autoSelectedFields.slice(0, maxFields);
+}
 
 // State
 const currentPhase = ref('setup');
@@ -258,20 +289,12 @@ const tournamentType = ref('single');
 const seedingMethod = ref('order');
 const tournamentName = ref('');
 const tasks = ref([]);
-const bracket = ref([]);
-const currentRound = ref(0);
-const currentMatchup = ref(0);
-const completedMatches = ref(0);
-const totalMatches = ref(0);
-const userVisibleMatches = ref(0); // Count of matches actually shown to the user
+const tournament = ref(null); // New TournamentRunner instance
+const currentMatch = ref(null); // Current match from tournament
 const matchHistory = ref(new Map()); // Map of task -> array of match records
-const eliminationOrder = ref([]); // Array to track elimination order (first eliminated = last place)
 const selectedTaskHistory = ref(null); // Currently selected task for viewing history
 const isDragOver = ref(false);
 const fileInput = ref(null);
-
-// Double elimination specific state
-const currentBracketType = ref('winners'); // 'winners', 'losers', or 'finals'
 
 // Computed
 const availableSecondaryFields = computed(() => {
@@ -279,64 +302,60 @@ const availableSecondaryFields = computed(() => {
 });
 
 const currentPair = computed(() => {
-    if (tournamentType.value === 'double') {
-        return getCurrentDoubleEliminationMatchup(bracket.value, currentBracketType.value, currentRound.value, currentMatchup.value);
-    }
-    return getCurrentMatchup(bracket.value, currentRound.value, currentMatchup.value);
+    if (!currentMatch.value) return [null, null];
+    return [currentMatch.value.player1, currentMatch.value.player2];
 });
 
 const totalUserVisibleMatches = computed(() => {
-    if (!tasks.value.length) return 0;
-    
-    if (tournamentType.value === 'double') {
-        // Double elimination: 2n-1 matches
-        return (tasks.value.length * 2) - 1;
-    }
-    
-    // Single elimination: n-1 matches
-    return tasks.value.length - 1;
+    if (!tournament.value) return 0;
+    return tournament.value.getTotalMatches();
 });
 
-const currentRoundMatchNumber = computed(() => {
-    // Simple approach: count how many user-visible matches we've seen before the current one
-    if (!bracket.value.length || currentRound.value >= bracket.value.length) return 0;
-    
-    let visibleMatches = 0;
-    for (let i = 0; i < currentMatchup.value; i++) {
-        if (i < bracket.value[currentRound.value].length) {
-            const match = bracket.value[currentRound.value][i];
-            if (match.teams[0] && match.teams[1]) {
-                visibleMatches++;
-            }
-        }
-    }
-    
-    return visibleMatches; // 0-indexed, so first visible match is 0
+const currentMatchNumber = computed(() => {
+    if (!tournament.value) return 1;
+    return tournament.value.getCurrentMatchNumber();
+});
+
+const currentRound = computed(() => {
+    if (!currentMatch.value) return 1;
+    return currentMatch.value.round;
+});
+
+const totalRounds = computed(() => {
+    if (!tournament.value) return 0;
+    return tournament.value.getTotalRounds();
+});
+
+const currentRoundMatches = computed(() => {
+    if (!tournament.value || !currentMatch.value) return 0;
+    return tournament.value.getMatchesInRound(currentMatch.value.round);
+});
+
+const currentMatchInRound = computed(() => {
+    if (!currentMatch.value) return 1;
+    return currentMatch.value.matchInRound;
+});
+
+const currentBracketType = computed(() => {
+    if (!currentMatch.value || !currentMatch.value.bracket) return 'main';
+    return currentMatch.value.bracket;
+});
+
+// Compatibility computed properties for existing tests
+const currentMatchup = computed(() => {
+    if (!tournament.value) return 0;
+    return tournament.value.matches.length; // Use completed matches count as matchup number
+});
+
+const totalMatches = computed(() => {
+    return totalUserVisibleMatches.value;
 });
 
 const finalRankings = computed(() => {
-    if (currentPhase.value !== 'results') return [];
+    if (currentPhase.value !== 'results' || !tournament.value) return [];
     
-    const rankings = [];
-    
-    // Winner is the last remaining task (not eliminated)
-    if (bracket.value.length > 0) {
-        const finalRound = bracket.value[bracket.value.length - 1];
-        if (finalRound.length > 0 && finalRound[0].winner) {
-            rankings.push(finalRound[0].winner);
-        }
-    }
-    
-    // Add tasks in reverse elimination order (last eliminated = 2nd place, first eliminated = last place)
-    // The eliminationOrder array contains tasks in the order they were eliminated
-    const reversedEliminations = [...eliminationOrder.value].reverse();
-    rankings.push(...reversedEliminations);
-    
-    // Handle any tasks that somehow weren't recorded (shouldn't happen in normal flow)
-    const unrankedTasks = tasks.value.filter(task => !rankings.includes(task));
-    rankings.push(...unrankedTasks);
-    
-    return rankings;
+    // Use the tournament's built-in ranking system
+    return tournament.value.getRankings();
 });
 
 // Methods
@@ -389,7 +408,7 @@ const calculateTotalMatchesForType = (type) => {
     if (type === 'double') {
         return (participantCount * 2) - 1; // Double elimination
     }
-    return calculateTotalMatches(participantCount); // Single elimination
+    return Math.max(0, participantCount - 1); // Single elimination
 };
 
 // Use current tournament type for UI display
@@ -414,74 +433,49 @@ function startBracketology() {
         tasks.value = shuffleArray(tasks.value);
     }
     
-    // Create the tournament bracket based on type
-    if (tournamentType.value === 'double') {
-        bracket.value = createDoubleEliminationBracket(tasks.value);
-        totalMatches.value = (tasks.value.length * 2) - 1;
-    } else {
-        bracket.value = createTournamentBracket(tasks.value);
-        totalMatches.value = calculateTotalMatches(tasks.value.length);
-    }
+    // Create new tournament instance
+    tournament.value = new Tournament(tournamentType.value, tasks.value);
     
-    // Set counters
-    currentRound.value = 0;
-    currentMatchup.value = 0;
-    completedMatches.value = 0;
-    userVisibleMatches.value = 0;
-    
-    // Initialize double elimination state
-    if (tournamentType.value === 'double') {
-        currentBracketType.value = 'winners';
-    }
-    
-    // Initialize match history and elimination tracking for all tasks
+    // Initialize match history for all tasks
     matchHistory.value = new Map();
-    eliminationOrder.value = [];
     tasks.value.forEach(task => {
         matchHistory.value.set(task, []);
     });
     
+    // Get first match
+    currentMatch.value = tournament.value.getNextMatch();
+    
     // Move to matchup phase
     currentPhase.value = 'matchups';
     
-    // Skip any initial bye matches
-    if (tournamentType.value === 'double') {
-        skipDoubleEliminationByes();
-    } else {
-        skipByeMatches();
+    // Check if tournament is complete (single participant case)
+    if (tournament.value.isComplete()) {
+        currentPhase.value = 'results';
     }
 }
 
 
 function chooseWinner(winnerIndex) {
-    if (tournamentType.value === 'double') {
-        chooseDoubleEliminationWinner(winnerIndex);
-    } else {
-        chooseSingleEliminationWinner(winnerIndex);
-    }
-}
-
-function chooseSingleEliminationWinner(winnerIndex) {
-    const match = bracket.value[currentRound.value][currentMatchup.value];
-    const winner = match.teams[winnerIndex];
-    const loser = match.teams[1 - winnerIndex];
+    if (!currentMatch.value || !tournament.value) return;
     
-    // Record the winner
-    match.winner = winner;
+    const winner = winnerIndex === 0 ? currentMatch.value.player1 : currentMatch.value.player2;
+    const loser = winnerIndex === 0 ? currentMatch.value.player2 : currentMatch.value.player1;
     
-    // Record match history for both participants
+    // Record match history
     const matchRecord = {
-        round: currentRound.value + 1,
+        round: currentMatch.value.round,
         opponent: loser,
         result: 'W',
-        matchNumber: userVisibleMatches.value + 1
+        matchNumber: tournament.value.getCurrentMatchNumber(),
+        bracket: currentMatch.value.bracket || 'main'
     };
     
     const loserRecord = {
-        round: currentRound.value + 1,
+        round: currentMatch.value.round,
         opponent: winner,
         result: 'L',
-        matchNumber: userVisibleMatches.value + 1
+        matchNumber: tournament.value.getCurrentMatchNumber(),
+        bracket: currentMatch.value.bracket || 'main'
     };
     
     if (matchHistory.value.has(winner)) {
@@ -491,254 +485,18 @@ function chooseSingleEliminationWinner(winnerIndex) {
         matchHistory.value.get(loser).push(loserRecord);
     }
     
-    // Track elimination order (loser is eliminated)
-    eliminationOrder.value.push(loser);
+    // Report result to tournament
+    tournament.value.reportResult(currentMatch.value, winner);
     
-    // Advance winner to next round
-    advanceWinner(bracket.value, winner, currentRound.value, currentMatchup.value);
-    
-    // Move to next match
-    completedMatches.value++;
-    userVisibleMatches.value++; // Increment user-visible matches counter
-    moveToNextMatch();
-}
-
-function chooseDoubleEliminationWinner(winnerIndex) {
-    let currentMatch;
-    if (currentBracketType.value === 'finals') {
-        currentMatch = bracket.value.finals[currentMatchup.value];
-    } else {
-        currentMatch = bracket.value[currentBracketType.value][currentRound.value][currentMatchup.value];
-    }
-    
-    const winner = currentMatch.teams[winnerIndex];
-    const loser = currentMatch.teams[1 - winnerIndex];
-    
-    // Record the winner
-    currentMatch.winner = winner;
-    
-    // Record match history for both participants
-    const matchRecord = {
-        round: currentRound.value + 1,
-        opponent: loser,
-        result: 'W',
-        matchNumber: userVisibleMatches.value + 1,
-        bracket: currentBracketType.value
-    };
-    
-    const loserRecord = {
-        round: currentRound.value + 1,
-        opponent: winner,
-        result: 'L',
-        matchNumber: userVisibleMatches.value + 1,
-        bracket: currentBracketType.value
-    };
-    
-    if (matchHistory.value.has(winner)) {
-        matchHistory.value.get(winner).push(matchRecord);
-    }
-    if (matchHistory.value.has(loser)) {
-        matchHistory.value.get(loser).push(loserRecord);
-    }
-    
-    // Track elimination order only when a player is actually eliminated
-    // In double elimination, this happens when:
-    // 1. They lose in the losers bracket (second loss = elimination)
-    // 2. They lose in finals coming from losers bracket
-    if (currentBracketType.value === 'losers' || 
-        (currentBracketType.value === 'finals' && loser === bracket.value.finals[currentMatchup.value].teams[1])) {
-        eliminationOrder.value.push(loser);
-    }
-    
-    // Advance winner using double elimination logic
-    advanceDoubleEliminationWinner(bracket.value, winner, currentBracketType.value, currentRound.value, currentMatchup.value);
-    
-    // Move to next match
-    completedMatches.value++;
-    userVisibleMatches.value++;
-    moveToNextDoubleEliminationMatch();
-}
-
-
-function moveToNextMatch() {
-    currentMatchup.value++;
-    
-    if (currentMatchup.value >= bracket.value[currentRound.value].length) {
-        currentRound.value++;
-        currentMatchup.value = 0;
-        
-        if (isTournamentComplete(bracket.value, currentRound.value)) {
-            currentPhase.value = 'results';
-            return;
-        }
-    }
-    
-    // Skip any bye matches
-    skipByeMatches();
-}
-
-function skipByeMatches() {
-    // Continue skipping until we find a match with two real opponents or tournament is complete
-    while (currentRound.value < bracket.value.length) {
-        const currentMatch = bracket.value[currentRound.value][currentMatchup.value];
-        
-        // If both teams exist, this is a real match - stop here
-        if (currentMatch.teams[0] && currentMatch.teams[1]) {
-            break;
-        }
-        
-        // This is a bye match - automatically advance the non-null team
-        if (currentMatch.teams[0] || currentMatch.teams[1]) {
-            const byeWinner = currentMatch.teams[0] || currentMatch.teams[1];
-            currentMatch.winner = byeWinner;
-            
-            // Record bye in match history
-            if (matchHistory.value.has(byeWinner)) {
-                matchHistory.value.get(byeWinner).push({
-                    round: currentRound.value + 1,
-                    opponent: null,
-                    result: 'BYE',
-                    matchNumber: null
-                });
-            }
-            
-            advanceWinner(bracket.value, byeWinner, currentRound.value, currentMatchup.value);
-        }
-        
-        // Move to next match
-        currentMatchup.value++;
-        
-        if (currentMatchup.value >= bracket.value[currentRound.value].length) {
-            currentRound.value++;
-            currentMatchup.value = 0;
-            
-            if (isTournamentComplete(bracket.value, currentRound.value)) {
-                currentPhase.value = 'results';
-                return;
-            }
-        }
-    }
-}
-
-function moveToNextDoubleEliminationMatch() {
-    // First try to find next match in current bracket
-    currentMatchup.value++;
-    
-    if (currentBracketType.value === 'finals') {
-        // In finals, handle special logic
-        if (currentMatchup.value >= bracket.value.finals.length) {
-            // Tournament complete
-            currentPhase.value = 'results';
-            return;
-        }
-        
-        // Check if this finals match is active
-        if (!bracket.value.finals[currentMatchup.value].isActive) {
-            // Tournament complete
-            currentPhase.value = 'results';
-            return;
-        }
-    } else {
-        // In winners or losers bracket
-        const currentBracket = bracket.value[currentBracketType.value];
-        
-        if (currentMatchup.value >= currentBracket[currentRound.value].length) {
-            // Move to next round in current bracket
-            currentRound.value++;
-            currentMatchup.value = 0;
-            
-            // Check if we've finished this bracket
-            if (currentRound.value >= currentBracket.length) {
-                // Move to next bracket type
-                if (currentBracketType.value === 'winners') {
-                    currentBracketType.value = 'losers';
-                    currentRound.value = 0;
-                    currentMatchup.value = 0;
-                } else if (currentBracketType.value === 'losers') {
-                    currentBracketType.value = 'finals';
-                    currentRound.value = 0;
-                    currentMatchup.value = 0;
-                }
-            }
-        }
-    }
+    // Get next match
+    currentMatch.value = tournament.value.getNextMatch();
     
     // Check if tournament is complete
-    if (isDoubleEliminationComplete(bracket.value)) {
+    if (tournament.value.isComplete()) {
         currentPhase.value = 'results';
-        return;
     }
-    
-    // Skip bye matches in double elimination
-    skipDoubleEliminationByes();
 }
 
-function skipDoubleEliminationByes() {
-    while (!isDoubleEliminationComplete(bracket.value)) {
-        let currentMatch;
-        
-        if (currentBracketType.value === 'finals') {
-            if (currentMatchup.value >= bracket.value.finals.length || 
-                !bracket.value.finals[currentMatchup.value].isActive) {
-                currentPhase.value = 'results';
-                return;
-            }
-            currentMatch = bracket.value.finals[currentMatchup.value];
-        } else {
-            const currentBracket = bracket.value[currentBracketType.value];
-            if (currentRound.value >= currentBracket.length) {
-                // Move to next bracket
-                if (currentBracketType.value === 'winners') {
-                    currentBracketType.value = 'losers';
-                    currentRound.value = 0;
-                    currentMatchup.value = 0;
-                    continue;
-                } else {
-                    currentBracketType.value = 'finals';
-                    currentRound.value = 0;
-                    currentMatchup.value = 0;
-                    continue;
-                }
-            }
-            
-            if (currentMatchup.value >= currentBracket[currentRound.value].length) {
-                currentRound.value++;
-                currentMatchup.value = 0;
-                continue;
-            }
-            
-            currentMatch = currentBracket[currentRound.value][currentMatchup.value];
-        }
-        
-        // If both teams exist, this is a real match
-        if (currentMatch.teams[0] && currentMatch.teams[1]) {
-            break;
-        }
-        
-        // Handle bye match
-        if (currentMatch.teams[0] || currentMatch.teams[1]) {
-            const byeWinner = currentMatch.teams[0] || currentMatch.teams[1];
-            currentMatch.winner = byeWinner;
-            
-            // Record bye in match history
-            if (matchHistory.value.has(byeWinner)) {
-                matchHistory.value.get(byeWinner).push({
-                    round: currentRound.value + 1,
-                    opponent: null,
-                    result: 'BYE',
-                    matchNumber: null,
-                    bracket: currentBracketType.value
-                });
-            }
-            
-            advanceDoubleEliminationWinner(bracket.value, byeWinner, currentBracketType.value, currentRound.value, currentMatchup.value);
-        }
-        
-        // Move to next match
-        moveToNextDoubleEliminationMatch();
-        return;
-    }
-}
 
 function getTaskTitle(task) {
     if (!task) return 'Untitled Task';
@@ -817,14 +575,9 @@ function restartBracketology() {
         selectedSecondaryFields.value = [];
         tournamentName.value = '';
         tasks.value = [];
-        bracket.value = [];
-        currentRound.value = 0;
-        currentMatchup.value = 0;
-        completedMatches.value = 0;
-        totalMatches.value = 0;
-        userVisibleMatches.value = 0;
+        tournament.value = null;
+        currentMatch.value = null;
         matchHistory.value = new Map();
-        eliminationOrder.value = [];
         selectedTaskHistory.value = null;
         seedingMethod.value = 'order';
     }

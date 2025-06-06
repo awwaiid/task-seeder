@@ -14,7 +14,9 @@
     "test:e2e-ui": "playwright test --ui"
   },
   "dependencies": {
+    "alloy-lang": "^6.2.0-6",
     "papaparse": "^5.5.3",
+    "tournament-pairings": "^2.0.0",
     "vue": "^3.5.13"
   },
   "devDependencies": {

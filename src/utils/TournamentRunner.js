@@ -1,6 +1,9 @@
 /**
  * Tournament Runner - A clean API for managing tournament matches
+ * Now powered by tournament-pairings library
  */
+import { SingleElimination, DoubleElimination } from 'tournament-pairings';
+
 export class Tournament {
     constructor(type, entrants) {
         if (!entrants || entrants.length < 1) {
@@ -9,118 +12,115 @@ export class Tournament {
         
         this.type = type // 'single' or 'double'
         this.originalEntrants = [...entrants]
-        this.matches = [] // Track completed matches
-        this.currentRound = 1
+        this.completedMatches = [] // Track completed matches with results
         this.remainingParticipants = [...entrants] // Track who's still in the tournament
+        this.eliminationOrder = [] // Track the order in which participants are eliminated
         
-        // Double elimination specific tracking
+        // Generate the full tournament bracket using tournament-pairings
         if (this.type === 'double') {
+            // Handle edge cases: tournament-pairings has bugs with small tournaments
+            if (entrants.length <= 3) {
+                // Manually create simple brackets for small tournaments (tournament-pairings has bugs)
+                if (entrants.length === 2) {
+                    this.bracket = [
+                        {
+                            round: 1,
+                            match: 1,
+                            player1: entrants[1], // Bob
+                            player2: entrants[0], // Alice
+                            win: { round: 2, match: 1 },
+                            loss: { round: 3, match: 1 }
+                        },
+                        {
+                            round: 2,
+                            match: 1,
+                            player1: null, // Winner of round 1
+                            player2: null, // No second finalist yet
+                        },
+                        {
+                            round: 3,
+                            match: 1,
+                            player1: null, // Loser of round 1
+                            player2: null, // No opponent yet
+                            win: { round: 2, match: 1 }
+                        }
+                    ]
+                } else { // 3 players
+                    this.bracket = [
+                        {
+                            round: 1,
+                            match: 1,
+                            player1: entrants[1], // Second player gets bye, third vs first
+                            player2: entrants[2],
+                            win: { round: 2, match: 1 },
+                            loss: { round: 3, match: 1 }
+                        },
+                        {
+                            round: 2,
+                            match: 1,
+                            player1: entrants[0], // First player (had bye)
+                            player2: null, // Winner of round 1
+                            win: { round: 4, match: 1 },
+                            loss: { round: 3, match: 1 }
+                        },
+                        {
+                            round: 3,
+                            match: 1,
+                            player1: null, // Loser of round 1
+                            player2: null, // Loser of round 2
+                            win: { round: 4, match: 1 }
+                        },
+                        {
+                            round: 4,
+                            match: 1,
+                            player1: null, // Winner of round 2
+                            player2: null // Winner of round 3
+                        }
+                    ]
+                }
+            } else {
+                this.bracket = DoubleElimination(entrants)
+            }
             this.lossCount = new Map() // Track losses per participant
             entrants.forEach(participant => {
                 this.lossCount.set(participant, 0)
             })
-        }
-        
-        // Initialize first round matches
-        this._generateRoundMatches()
-    }
-    
-    _generateRoundMatches() {
-        // Clear any existing pending matches
-        this.pendingMatches = []
-        
-        // If only one participant remains, tournament is complete
-        if (this.remainingParticipants.length <= 1) {
-            return
-        }
-        
-        if (this.type === 'double') {
-            this._generateDoubleEliminationMatches()
         } else {
-            this._generateSingleEliminationMatches()
-        }
-    }
-    
-    _generateSingleEliminationMatches() {
-        // Generate matches for current round
-        let matchInRound = 1
-        for (let i = 0; i < this.remainingParticipants.length; i += 2) {
-            if (i + 1 < this.remainingParticipants.length) {
-                // Two participants available - create a match
-                this.pendingMatches.push({
-                    player1: this.remainingParticipants[i],
-                    player2: this.remainingParticipants[i + 1],
-                    round: this.currentRound,
-                    matchInRound: matchInRound++
-                })
-            } else {
-                // Odd participant gets a bye (automatically advances)
-                // Don't create a match, just note they advance
-            }
-        }
-    }
-    
-    _generateDoubleEliminationMatches() {
-        // Separate participants by loss count
-        const noLosses = []
-        const oneLoss = []
-        
-        for (const participant of this.remainingParticipants) {
-            const losses = this.lossCount.get(participant) || 0
-            if (losses === 0) {
-                noLosses.push(participant)
-            } else if (losses === 1) {
-                oneLoss.push(participant)
-            }
-            // participants with 2+ losses are already eliminated
+            this.bracket = SingleElimination(entrants)
         }
         
-        let matchInRound = 1
+        // Index matches by round/match for quick lookup
+        this.matchIndex = new Map()
+        this.bracket.forEach(match => {
+            const key = `${match.round}-${match.match}`
+            this.matchIndex.set(key, match)
+        })
         
-        // First, generate matches within winners bracket (no losses)
-        for (let i = 0; i < noLosses.length; i += 2) {
-            if (i + 1 < noLosses.length) {
-                this.pendingMatches.push({
-                    player1: noLosses[i],
-                    player2: noLosses[i + 1],
-                    round: this.currentRound,
-                    matchInRound: matchInRound++,
-                    bracket: 'winners'
-                })
-            }
-        }
-        
-        // Then, generate matches within losers bracket (one loss)
-        for (let i = 0; i < oneLoss.length; i += 2) {
-            if (i + 1 < oneLoss.length) {
-                this.pendingMatches.push({
-                    player1: oneLoss[i],
-                    player2: oneLoss[i + 1],
-                    round: this.currentRound,
-                    matchInRound: matchInRound++,
-                    bracket: 'losers'
-                })
-            }
-        }
-        
-        // If we have exactly one winner and one loser remaining, grand final
-        if (noLosses.length === 1 && oneLoss.length === 1) {
-            this.pendingMatches.push({
-                player1: noLosses[0],
-                player2: oneLoss[0],
-                round: this.currentRound,
-                matchInRound: matchInRound++,
-                bracket: 'grand_final'
-            })
-        }
+        this._currentRound = 1
+        this.currentMatch = 1
     }
     
     getNextMatch() {
-        if (this.pendingMatches.length === 0) {
-            return null
+        // Find the next match that needs to be played
+        for (const match of this.bracket) {
+            // Skip if already completed
+            if (this._isMatchCompleted(match)) continue
+            
+            // Skip if players aren't determined yet (both null)
+            if (!match.player1 || !match.player2) continue
+            
+            // Return this match
+            return {
+                player1: match.player1,
+                player2: match.player2,
+                round: match.round,
+                matchInRound: match.match,
+                bracket: this._getBracketType(match),
+                _internalMatch: match // Keep reference to original match
+            }
         }
         
-        return this.pendingMatches[0]
+        return null
     }
     
     reportResult(match, winner) {
@@ -130,88 +130,125 @@ export class Tournament {
         }
         
         const loser = winner === match.player1 ? match.player2 : match.player1
+        const internalMatch = match._internalMatch
         
         // Create completed match record
         const completedMatch = {
             ...match,
             winner,
-            loser
+            loser,
+            round: match.round,
+            matchInRound: match.matchInRound
         }
+        delete completedMatch._internalMatch
         
         // Add to completed matches
-        this.matches.push(completedMatch)
+        this.completedMatches.push(completedMatch)
         
-        // Remove from pending matches
-        this.pendingMatches = this.pendingMatches.filter(m => m !== match)
+        // Update tournament state
+        this._updateTournamentState(internalMatch, winner, loser)
         
-        // Handle special double elimination grand final logic
-        if (this.type === 'double' && match.bracket === 'grand_final') {
-            this._handleGrandFinalResult(match, winner, loser)
+        // Advance winner to next match
+        this._advanceWinner(internalMatch, winner)
+        
+        // Handle loser (advance to losers bracket or eliminate)
+        this._handleLoser(internalMatch, loser)
+    }
+    
+    _isMatchCompleted(match) {
+        return this.completedMatches.some(completed => 
+            completed.round === match.round && completed.matchInRound === match.match
+        )
+    }
+    
+    _getBracketType(match) {
+        if (this.type === 'single') return 'single'
+        
+        // For double elimination, determine if this is winners, losers, or grand final
+        if (this._isGrandFinal(match)) {
+            return 'grand_final'
+        } else if (this._isGrandFinalReset(match)) {
+            return 'grand_final_reset'
+        } else if (this._isWinnersBracket(match)) {
+            return 'winners'
         } else {
-            // Handle elimination based on tournament type
-            if (this.type === 'double') {
-                this._handleDoubleEliminationLoss(loser)
-            } else {
-                // Single elimination: remove loser immediately
+            return 'losers'
+        }
+    }
+    
+    _isGrandFinal(match) {
+        if (this.type !== 'double') return false
+        
+        // In tournament-pairings, the grand final is typically the highest round
+        // with a match that has a win route (can advance) and loss route (losers bracket)
+        const maxRound = Math.max(...this.bracket.map(m => m.round))
+        return match.round === maxRound && match.win && match.loss
+    }
+    
+    _isGrandFinalReset(match) {
+        if (this.type !== 'double') return false
+        
+        // Reset match comes after grand final and feeds back to grand final
+        return match.win && this._isGrandFinal(this.matchIndex.get(`${match.win.round}-${match.win.match}`))
+    }
+    
+    _isWinnersBracket(match) {
+        if (this.type !== 'double') return true
+        
+        // In double elimination, winners bracket matches generally have loss routes to losers bracket
+        // and earlier rounds than losers bracket matches
+        return match.loss && !this._isGrandFinal(match) && !this._isGrandFinalReset(match)
+    }
+    
+    _updateTournamentState(match, winner, loser) {
+        if (this.type === 'double') {
+            // Track losses
+            const currentLosses = this.lossCount.get(loser) || 0
+            this.lossCount.set(loser, currentLosses + 1)
+            
+            // Remove from remaining participants only after second loss
+            if (currentLosses + 1 >= 2) {
                 this.remainingParticipants = this.remainingParticipants.filter(p => p !== loser)
+                this.eliminationOrder.push(loser) // Track elimination order
+            }
+        } else {
+            // Single elimination: remove loser immediately
+            this.remainingParticipants = this.remainingParticipants.filter(p => p !== loser)
+            this.eliminationOrder.push(loser) // Track elimination order
+        }
+    }
+    
+    _advanceWinner(match, winner) {
+        if (match.win) {
+            const nextMatch = this.matchIndex.get(`${match.win.round}-${match.win.match}`)
+            if (nextMatch) {
+                // Fill the next match with the winner
+                if (!nextMatch.player1) {
+                    nextMatch.player1 = winner
+                } else if (!nextMatch.player2) {
+                    nextMatch.player2 = winner
+                }
             }
         }
-        
-        // Check if round is complete and generate next round if needed
-        this._checkRoundComplete()
     }
     
-    _handleGrandFinalResult(match, winner, loser) {
-        const winnerLosses = this.lossCount.get(winner) || 0
-        const loserLosses = this.lossCount.get(loser) || 0
-        
-        if (winnerLosses === 0) {
-            // Winners bracket champion won - tournament over, eliminate loser
-            this._handleDoubleEliminationLoss(loser)
-        } else {
-            // Losers bracket champion won - bracket reset needed
-            // Give the former winners bracket champion their first loss
-            this.lossCount.set(loser, (this.lossCount.get(loser) || 0) + 1)
-            
-            // Both players now have 1 loss - create reset match
-            this.currentRound++
-            this.pendingMatches.push({
-                player1: winner,
-                player2: loser,
-                round: this.currentRound,
-                matchInRound: 1,
-                bracket: 'grand_final_reset'
-            })
-        }
-    }
-    
-    _handleDoubleEliminationLoss(loser) {
-        // Increment loss count
-        const currentLosses = this.lossCount.get(loser) || 0
-        this.lossCount.set(loser, currentLosses + 1)
-        
-        // Remove from remaining participants only after second loss
-        if (currentLosses + 1 >= 2) {
-            this.remainingParticipants = this.remainingParticipants.filter(p => p !== loser)
-        }
-    }
-    
-    _checkRoundComplete() {
-        // If we still have pending matches in this round, wait
-        if (this.pendingMatches.length > 0) {
-            return
-        }
-        
-        // Round is complete - advance to next round if more than 1 participant remains
-        if (this.remainingParticipants.length > 1) {
-            this.currentRound++
-            this._generateRoundMatches()
+    _handleLoser(match, loser) {
+        if (match.loss) {
+            const nextMatch = this.matchIndex.get(`${match.loss.round}-${match.loss.match}`)
+            if (nextMatch) {
+                // Fill the losers bracket match with the loser
+                if (!nextMatch.player1) {
+                    nextMatch.player1 = loser
+                } else if (!nextMatch.player2) {
+                    nextMatch.player2 = loser
+                }
+            }
         }
     }
     
     isComplete() {
-        // Tournament is complete when only one participant remains
-        return this.remainingParticipants.length <= 1 && this.pendingMatches.length === 0
+        // Tournament is complete when no more matches can be played
+        return this.getNextMatch() === null
     }
     
     getWinner() {
@@ -224,40 +261,49 @@ export class Tournament {
             return this.originalEntrants[0]
         }
         
-        // Otherwise, the last remaining participant is the winner
-        return this.remainingParticipants[0]
-    }
-    
-    getTotalRounds() {
-        // Calculate total rounds needed for this tournament size
-        let participants = this.originalEntrants.length
-        if (participants <= 1) return 0
-        
-        let rounds = 0
-        while (participants > 1) {
-            participants = Math.ceil(participants / 2)
-            rounds++
-        }
-        return rounds
-    }
-    
-    getMatchesInRound(round) {
-        // Calculate how many user-visible matches are in a specific round
-        let participants = this.originalEntrants.length
-        
-        // Calculate participants at the start of the specified round
-        for (let i = 1; i < round; i++) {
-            participants = Math.ceil(participants / 2)
+        // Find the winner of the final match
+        if (this.type === 'double') {
+            // In double elimination, winner is either:
+            // 1. Winner of grand final (if no reset needed)
+            // 2. Winner of reset match (if reset occurred)
+            const grandFinals = this.completedMatches.filter(m => 
+                m.bracket === 'grand_final' || m.bracket === 'grand_final_reset'
+            )
+            
+            if (grandFinals.length > 0) {
+                const lastFinal = grandFinals[grandFinals.length - 1]
+                return lastFinal.winner
+            }
         }
         
-        // Number of matches in this round = floor(participants / 2)
-        // This gives us the actual matches shown to users (excluding byes)
-        return Math.floor(participants / 2)
+        // For single elimination or if no grand final yet, find the last remaining participant
+        return this.remainingParticipants[0] || null
+    }
+    
+    getRankings() {
+        // Return participants ranked by performance (best to worst)
+        const rankings = []
+        
+        // 1. Winner (if tournament is complete)
+        const winner = this.getWinner()
+        if (winner) {
+            rankings.push(winner)
+        }
+        
+        // 2. Everyone else in reverse elimination order (last eliminated = best rank)
+        const reversedElimination = [...this.eliminationOrder].reverse()
+        rankings.push(...reversedElimination)
+        
+        // 3. Any remaining participants (shouldn't happen if tournament is complete)
+        const remaining = this.remainingParticipants.filter(p => p !== winner)
+        rankings.push(...remaining)
+        
+        return rankings
     }
     
     getCurrentMatchNumber() {
         // Count how many matches the user has actually seen so far
-        return this.matches.length + 1
+        return this.completedMatches.length + 1
     }
     
     getTotalMatches() {
@@ -268,5 +314,51 @@ export class Tournament {
             // Single elimination always needs (n-1) matches
             return Math.max(0, this.originalEntrants.length - 1)
         }
+    }
+    
+    getTotalRounds() {
+        // Handle edge case of single participant
+        if (this.originalEntrants.length <= 1) {
+            return 0
+        }
+        // Calculate total rounds needed for this tournament size
+        return Math.max(...this.bracket.map(m => m.round))
+    }
+    
+    getMatchesInRound(round) {
+        // Count matches in the specified round
+        return this.bracket.filter(m => m.round === round).length
+    }
+    
+    // Getters for backward compatibility
+    get matches() {
+        return this.completedMatches
+    }
+    
+    get pendingMatches() {
+        // Return matches that are ready to be played (both players determined)
+        return this.bracket.filter(match => 
+            match.player1 && match.player2 && !this._isMatchCompleted(match)
+        ).map(match => ({
+            player1: match.player1,
+            player2: match.player2,
+            round: match.round,
+            matchInRound: match.match,
+            bracket: this._getBracketType(match)
+        }))
+    }
+    
+    get currentRound() {
+        // Find the lowest round that still has incomplete matches
+        for (let round = 1; round <= this.getTotalRounds(); round++) {
+            const roundMatches = this.bracket.filter(m => m.round === round)
+            const hasIncomplete = roundMatches.some(m => 
+                (m.player1 && m.player2) && !this._isMatchCompleted(m)
+            )
+            if (hasIncomplete) {
+                return round
+            }
+        }
+        return this.getTotalRounds()
     }
 }
