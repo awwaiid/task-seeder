@@ -27,6 +27,7 @@
             </div>
         </div>
         
+        <!-- Debug info hidden for production
         <div class="debug-info">
             <strong>Debug:</strong>
             Tasks: {{ taskCount }} | 
@@ -36,6 +37,7 @@
             <span v-if="tournamentType === 'double'">Bracket: {{ currentBracketType }} |</span>
             Global: {{ globalMatchNumber }}/{{ totalMatches }} ({{ globalProgressPercentage }}%)
         </div>
+        -->
     </div>
 </template>
 

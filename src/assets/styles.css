@@ -215,14 +215,13 @@ button.success:hover {
     margin: 40px 0;
     gap: 20px;
     outline: none;
-    border-radius: 8px;
-    padding: 10px;
-    margin: 30px -10px;
 }
 
+/* Removed focus styling to eliminate unwanted blue border
 .task-choice:focus {
     box-shadow: 0 0 0 2px var(--secondary);
 }
+*/
 
 .task-button {
     flex: 1;
