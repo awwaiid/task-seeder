@@ -29,7 +29,7 @@ This repository is configured to automatically deploy to GitHub Pages when you p
    - Source: "GitHub Actions"
 
 2. **Update the base path (if needed):**
-   - Edit `vite.config.js` and change `/bracketology-ranker/` to match your repository name
+   - Edit `vite.config.js` and change `/task-seeder/` to match your repository name
    - For example, if your repository is `username/my-tournament-app`, change it to `/my-tournament-app/`
 
 3. **Push to main branch:**
