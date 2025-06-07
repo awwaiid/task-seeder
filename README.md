@@ -1,6 +1,6 @@
-# Bracketology Ranker
+# TaskSeeder
 
-A Vue.js application for ranking tasks using tournament-style bracket elimination.
+A Vue.js application for ranking tasks using tournament-style bracket elimination. Hosted at [taskseeder.com](https://taskseeder.com).
 
 ## Development
 
@@ -18,23 +18,9 @@ npm test
 npm run test:e2e
 ```
 
-## GitHub Pages Deployment
+## Deployment
 
-This repository is configured to automatically deploy to GitHub Pages when you push to the `main` branch.
-
-### Setup Instructions:
-
-1. **Enable GitHub Pages in your repository:**
-   - Go to Settings → Pages
-   - Source: "GitHub Actions"
-
-2. **Update the base path (if needed):**
-   - Edit `vite.config.js` and change `/task-seeder/` to match your repository name
-   - For example, if your repository is `username/my-tournament-app`, change it to `/my-tournament-app/`
-
-3. **Push to main branch:**
-   - The GitHub Action will automatically build and deploy your app
-   - Your app will be available at `https://username.github.io/repository-name/`
+This repository is configured to automatically deploy to taskseeder.com when you push to the `main` branch.
 
 ## Building for Production
 
@@ -44,13 +30,11 @@ npm run build
 
 The built files will be in the `dist/` directory.
 
-## Ideas
+## Future Ideas
 
-* Rename to TaskSeeder (hosted at taskseeder.com)
-* Use the logo
-* Have sign ups and accounts
-* Integrate with asana or others
-  * Given a filtered list import it
-  * Rank the items
-  * Push back the updated priorities (ranking)
+* User accounts and sign-ups
+* Integrate with project management tools:
+  * Import filtered task lists from Asana, Linear, Jira, etc.
+  * Rank the items using tournament brackets
+  * Push back the updated priorities to the source system
 
