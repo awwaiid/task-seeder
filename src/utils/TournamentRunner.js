@@ -13,8 +13,10 @@ export class Tournament {
         this.type = type // 'single' or 'double'
         this.originalEntrants = [...entrants]
         this.completedMatches = [] // Track completed matches with results
+        this.completedMatchesSet = new Set() // O(1) lookup for completed matches
         this.remainingParticipants = [...entrants] // Track who's still in the tournament
         this.eliminationOrder = [] // Track the order in which participants are eliminated
+        this.nextMatchCache = null // Cache for next available match
         
         // Generate the full tournament bracket using tournament-pairings
         if (this.type === 'double') {
@@ -101,6 +103,11 @@ export class Tournament {
     }
     
     getNextMatch() {
+        // Return cached match if still valid
+        if (this.nextMatchCache && this._isValidCachedMatch(this.nextMatchCache)) {
+            return this.nextMatchCache
+        }
+        
         // Find the next match that needs to be played
         for (const match of this.bracket) {
             // Skip if already completed
@@ -109,8 +116,8 @@ export class Tournament {
             // Skip if players aren't determined yet (both null)
             if (!match.player1 || !match.player2) continue
             
-            // Return this match
-            return {
+            // Cache and return this match
+            this.nextMatchCache = {
                 player1: match.player1,
                 player2: match.player2,
                 round: match.round,
@@ -118,9 +125,27 @@ export class Tournament {
                 bracket: this._getBracketType(match),
                 _internalMatch: match // Keep reference to original match
             }
+            return this.nextMatchCache
         }
         
+        this.nextMatchCache = null
         return null
+    }
+    
+    _isValidCachedMatch(cachedMatch) {
+        if (!cachedMatch || !cachedMatch._internalMatch) return false
+        
+        // Check if the cached match is still the right one
+        const internalMatch = cachedMatch._internalMatch
+        
+        // If already completed, cache is invalid
+        if (this._isMatchCompleted(internalMatch)) return false
+        
+        // If players changed, cache is invalid
+        if (internalMatch.player1 !== cachedMatch.player1 || 
+            internalMatch.player2 !== cachedMatch.player2) return false
+            
+        return true
     }
     
     reportResult(match, winner) {
@@ -145,6 +170,13 @@ export class Tournament {
         // Add to completed matches
         this.completedMatches.push(completedMatch)
         
+        // Add to Set for O(1) lookup performance
+        const matchKey = `${match.round}-${match.matchInRound}`
+        this.completedMatchesSet.add(matchKey)
+        
+        // Invalidate next match cache since tournament state is changing
+        this.nextMatchCache = null
+        
         // Update tournament state
         this._updateTournamentState(internalMatch, winner, loser)
         
@@ -156,9 +188,9 @@ export class Tournament {
     }
     
     _isMatchCompleted(match) {
-        return this.completedMatches.some(completed => 
-            completed.round === match.round && completed.matchInRound === match.match
-        )
+        // Use Set for O(1) lookup instead of O(n) array search
+        const matchKey = `${match.round}-${match.match}`
+        return this.completedMatchesSet.has(matchKey)
     }
     
     _getBracketType(match) {
@@ -360,5 +392,18 @@ export class Tournament {
             }
         }
         return this.getTotalRounds()
+    }
+    
+    // Method to rebuild internal state after loading from saved data
+    rebuildInternalState() {
+        // Rebuild completedMatchesSet from completedMatches array
+        this.completedMatchesSet = new Set()
+        this.completedMatches.forEach(match => {
+            const matchKey = `${match.round}-${match.matchInRound}`
+            this.completedMatchesSet.add(matchKey)
+        })
+        
+        // Clear cache to force recalculation with correct state
+        this.nextMatchCache = null
     }
 }

@@ -378,6 +378,10 @@ const loadedFromURL = ref(false); // Whether current bracket was loaded from URL
 const showAutoSaveNotice = ref(false); // Show auto-save success notice
 const storageUsage = ref(null); // Storage usage info
 
+// Performance optimization: debounced auto-save
+let saveTimeout = null;
+const SAVE_DEBOUNCE_MS = 10000; // Save every 10 seconds max
+
 // Computed
 const availableSecondaryFields = computed(() => {
     return csvHeaders.value.filter(header => header !== taskNameColumn.value);
@@ -583,10 +587,12 @@ function chooseWinner(winnerIndex) {
     // Check if tournament is complete
     if (tournament.value.isComplete()) {
         currentPhase.value = 'results';
+        // Save immediately when tournament completes
+        saveBracket();
+    } else {
+        // Use debounced save during rapid match play for performance
+        debouncedSave();
     }
-    
-    // Auto-save the bracket after each match
-    saveBracket();
 }
 
 
@@ -659,6 +665,15 @@ function exportResults() {
 
 
 function restartBracketology() {
+    // Force save before returning home to ensure no progress is lost
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+    }
+    if (currentBracketId.value && tournament.value) {
+        saveBracket();
+    }
+    
     currentPhase.value = 'setup';
     csvData.value = [];
     csvHeaders.value = [];
@@ -718,6 +733,14 @@ function loadBracket(bracketId) {
             if (state.tournament.matchIndex) {
                 tournament.value.matchIndex = new Map(state.tournament.matchIndex);
             }
+            
+            // Rebuild internal state for performance optimizations
+            tournament.value.rebuildInternalState();
+            
+            // Update currentMatch to the actual next match after rebuilding state
+            if (currentPhase.value === 'matchups') {
+                currentMatch.value = tournament.value.getNextMatch();
+            }
         }
         
         // If we're in matchups phase, check if tournament is complete
@@ -767,6 +790,20 @@ function saveBracket() {
     } catch (error) {
         console.error('Error saving bracket:', error);
     }
+}
+
+// Debounced save function for performance during rapid matches
+function debouncedSave() {
+    // Clear existing timeout
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+    }
+    
+    // Set new timeout
+    saveTimeout = setTimeout(() => {
+        saveBracket();
+        saveTimeout = null;
+    }, SAVE_DEBOUNCE_MS);
 }
 
 function deleteBracket(bracketId) {
@@ -896,6 +933,14 @@ function loadBracketFromURL() {
             }
             if (state.tournament.matchIndex) {
                 tournament.value.matchIndex = new Map(state.tournament.matchIndex);
+            }
+            
+            // Rebuild internal state for performance optimizations
+            tournament.value.rebuildInternalState();
+            
+            // Update currentMatch to the actual next match after rebuilding state
+            if (currentPhase.value === 'matchups') {
+                currentMatch.value = tournament.value.getNextMatch();
             }
         }
         
