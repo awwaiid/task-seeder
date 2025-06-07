@@ -16,7 +16,7 @@ body {
     background-color: var(--light);
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 15px 20px 20px 20px;
 }
 
 h1 {
@@ -44,25 +44,21 @@ h3 {
 
 .app-header {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: flex-start;
+    justify-content: flex-start;
     gap: 15px;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 2px solid var(--secondary);
+    margin-bottom: 0;
+    padding-bottom: 15px;
 }
 
 .clickable-header {
     cursor: pointer;
     transition: opacity 0.2s ease;
-    border-radius: 8px;
-    padding: 10px;
-    margin: -10px;
+    border-radius: 6px;
 }
 
 .clickable-header:hover {
     opacity: 0.8;
-    background-color: rgba(52, 152, 219, 0.05);
 }
 
 .header-text {
@@ -72,7 +68,7 @@ h3 {
 }
 
 .subtitle {
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: #6b7280;
     margin: -0.5rem 0 0 0;
     font-weight: 400;
@@ -86,6 +82,7 @@ h3 {
     border-radius: 8px;
     padding: 4px;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    margin-top: 8px;
 }
 
 .app-header h1 {
@@ -386,8 +383,8 @@ button.success:hover {
     }
     
     .app-header {
-        margin-bottom: 20px;
-        padding-bottom: 15px;
+        margin-bottom: 0;
+        padding-bottom: 20px;
     }
     
     .app-header h1 {
@@ -475,5 +472,26 @@ button.success:hover {
     .debug-info {
         font-size: 10px;
         padding: 8px;
+    }
+    
+    /* Improve bracket cards layout on mobile */
+    .saved-brackets .bracket-card {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+    
+    .saved-brackets .bracket-info {
+        margin-bottom: 8px !important;
+    }
+    
+    .saved-brackets .bracket-actions {
+        align-self: stretch !important;
+        justify-content: space-between !important;
+    }
+    
+    .saved-brackets .bracket-actions button {
+        flex: 1 !important;
+        margin: 0 2px !important;
     }
 }

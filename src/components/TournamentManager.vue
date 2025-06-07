@@ -2,14 +2,15 @@
     <!-- Setup Phase -->
     <div class="container" v-if="currentPhase === 'setup'">
         <!-- Saved Brackets Section -->
-        <div v-if="savedBrackets.length > 0" style="margin-bottom: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+        <div v-if="savedBrackets.length > 0" class="saved-brackets" style="margin-bottom: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
             <h2>Continue Previous Brackets</h2>
             <p style="color: #666; margin-bottom: 15px;">Pick up where you left off with your saved bracket tournaments:</p>
             
             <div style="display: grid; gap: 12px;">
                 <div v-for="bracket in savedBrackets" :key="bracket.id" 
+                     class="bracket-card"
                      style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; border: 1px solid #ddd;">
-                    <div style="flex: 1;">
+                    <div class="bracket-info" style="flex: 1;">
                         <div style="font-weight: bold; margin-bottom: 4px;">{{ bracket.name }}</div>
                         <div style="font-size: 12px; color: #666;">
                             {{ bracket.status === 'results' ? 'Completed' : 'In Progress' }} • 
@@ -18,7 +19,7 @@
                             {{ formatDate(bracket.lastModified) }}
                         </div>
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div class="bracket-actions" style="display: flex; gap: 8px;">
                         <button @click="loadBracket(bracket.id)" 
                                 style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                             {{ bracket.status === 'results' ? 'View Results' : 'Continue' }}
