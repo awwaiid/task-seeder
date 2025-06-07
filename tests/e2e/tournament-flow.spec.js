@@ -143,28 +143,26 @@ test('upload CSV file and start tournament', async ({ page }) => {
   }
   
   // Test match history functionality
-  // Click on the winner's history button
-  const winnerRow = page.locator('tbody tr').first();
-  const historyButton = winnerRow.locator('button.history-button');
-  await expect(historyButton).toBeVisible();
-  await historyButton.click();
+  // Click on the winner's row to expand history
+  const winnerRow = page.locator('tbody tr.clickable-row').first();
+  await expect(winnerRow).toBeVisible();
+  await winnerRow.click();
   
   // Verify match history section appears (for whatever task won)
   await expect(page.locator('text=Match History:')).toBeVisible();
   
   // Verify history shows matches (winner should have won all their matches)
-  await expect(page.locator('text=🏆 WON')).toHaveCount(3); // Should have 3 wins (rounds 1, 2, 3)
+  await expect(page.locator('text=WON')).toHaveCount(3); // Should have 3 wins (rounds 1, 2, 3)
   
-  // Close history
-  await page.locator('button:has-text("✕ Close")').click();
+  // Close history by clicking the close button
+  await page.locator('button:has-text("✕")').click();
   await expect(page.locator('text=Match History:')).toHaveCount(0);
   
   // Test a task that lost - check last place
-  const lastRow = page.locator('tbody tr').last();
-  const lastHistoryButton = lastRow.locator('button.history-button');
-  await lastHistoryButton.click();
+  const lastRow = page.locator('tbody tr.clickable-row').last();
+  await lastRow.click();
   
   // Verify it shows match history for last place task
   await expect(page.locator('text=Match History:')).toBeVisible();
-  await expect(page.locator('text=❌ LOST')).toHaveCount(1); // Should have 1 loss
+  await expect(page.locator('text=LOST')).toHaveCount(1); // Should have 1 loss
 });

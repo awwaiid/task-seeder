@@ -4,7 +4,7 @@ test('app loads successfully', async ({ page }) => {
   await page.goto('/');
   
   // Check that the main heading is present
-  await expect(page.locator('h1')).toContainText('Task Bracketology Ranking Tool');
+  await expect(page.locator('h1')).toContainText('TaskSeeder');
   
   // Check that the load tasks section is visible
   await expect(page.locator('h2')).toContainText('Start New Bracket');
@@ -15,5 +15,5 @@ test('app loads successfully', async ({ page }) => {
 
 test('page title is correct', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('Vite + Vue');
+  await expect(page).toHaveTitle('TaskSeeder');
 });

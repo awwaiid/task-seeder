@@ -377,4 +377,45 @@ describe('TournamentManager Integration Tests', () => {
             expect(wrapper.vm.currentPhase).toBe('setup')
         })
     })
+
+    describe('Demo Data Functionality', () => {
+        it('should load demo data correctly', async () => {
+            // Load demo data directly via method
+            await wrapper.vm.loadDemoData()
+            await wrapper.vm.$nextTick()
+            
+            // Check that demo data is loaded
+            expect(wrapper.vm.csvData.length).toBe(15)
+            expect(wrapper.vm.csvHeaders.length).toBeGreaterThan(0)
+            expect(wrapper.vm.taskNameColumn).toBe('name')
+            expect(wrapper.vm.tournamentName).toContain('Demo Tournament')
+            
+            // Check that data preview shows
+            expect(wrapper.text()).toContain('Data Preview (15 tasks loaded)')
+            expect(wrapper.text()).toContain('Add user authentication screen')
+        })
+
+        it('should allow starting tournament with demo data', async () => {
+            // Load demo data
+            await wrapper.vm.loadDemoData()
+            await wrapper.vm.$nextTick()
+            
+            // Verify start button is enabled and can start tournament
+            expect(wrapper.vm.taskNameColumn).toBeTruthy()
+            expect(wrapper.vm.tournamentName.trim()).toBeTruthy()
+            expect(wrapper.vm.csvData.length).toBeGreaterThan(1)
+            
+            // Should have demo data loaded
+            expect(wrapper.vm.csvData.length).toBe(15)
+            expect(wrapper.vm.tasks.length).toBe(0) // Not yet started
+            
+            // Start tournament programmatically
+            wrapper.vm.startBracketology()
+            await wrapper.vm.$nextTick()
+            
+            // Should move to matchups phase
+            expect(wrapper.vm.currentPhase).toBe('matchups')
+            expect(wrapper.vm.tasks.length).toBe(15)
+        })
+    })
 })

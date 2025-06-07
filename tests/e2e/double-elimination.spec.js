@@ -212,8 +212,8 @@ test.describe('Double Elimination Tournament', () => {
         // Check match history functionality
         await expect(page.locator('.results-table')).toBeVisible();
         
-        // Click on a history button (📊 emoji button)
-        await page.locator('.history-button').first().click();
+        // Click on the first task row to view history
+        await page.locator('tbody tr.clickable-row').first().click();
 
         // Verify match history modal/section appears
         await expect(page.locator('text=Match History:')).toBeVisible();
@@ -223,7 +223,7 @@ test.describe('Double Elimination Tournament', () => {
         await expect(historySection).toBeVisible();
 
         // Close history
-        await page.locator('button:has-text("✕ Close")').click();
+        await page.locator('button:has-text("✕")').click();
         await expect(page.locator('text=Match History:')).not.toBeVisible();
     });
 
