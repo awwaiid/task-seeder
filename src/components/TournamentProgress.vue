@@ -1,11 +1,12 @@
 <template>
     <div>
-        <h2 v-if="tournamentType === 'double'">
-            {{ bracketDisplayName }} - {{ tournamentName }}
+        <h2>
+            Match {{ displayMatch }} of {{ currentRoundMatches }}, Round {{ displayRound }} of {{ totalRounds }} - {{ tournamentName }}
         </h2>
-        <h2 v-else>
-            Round {{ displayRound }} of {{ totalRounds }}, Match {{ displayMatch }} of {{ currentRoundMatches }} - {{ tournamentName }}
-        </h2>
+        
+        <h3 v-if="tournamentType === 'double'" style="margin-top: 5px; color: #666; font-weight: normal;">
+            {{ bracketDisplayName }}
+        </h3>
         
         <div class="progress">
             <div class="progress-bar" :style="{width: progressPercentage + '%'}"></div>

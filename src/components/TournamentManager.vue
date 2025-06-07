@@ -50,6 +50,17 @@
             </button>
         </div>
         
+        <!-- Storage Warning -->
+        <div v-if="showStorageWarning" style="margin-bottom: 20px; padding: 12px 16px; background-color: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #856404; font-size: 16px;">⚠️</span>
+                <span style="color: #856404; font-weight: 500;">Browser storage is {{ storageUsage.usagePercent }}% full ({{ storageUsage.totalMB }}MB). Old brackets may be automatically cleaned up.</span>
+            </div>
+            <button @click="cleanupStorage" style="padding: 4px 8px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                Clean Up
+            </button>
+        </div>
+        
         <!-- Auto-save Success Notice -->
         <div v-if="showAutoSaveNotice" style="margin-bottom: 20px; padding: 12px 16px; background-color: #d1edff; border-radius: 6px; border-left: 4px solid #0ea5e9; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 8px;">
@@ -301,6 +312,7 @@ import TaskMatchup from './TaskMatchup.vue';
 import { Tournament } from '../utils/TournamentRunner.js';
 import { BracketStorage } from '../utils/BracketStorage.js';
 import { URLBracketSharing } from '../utils/URLBracketSharing.js';
+import { StorageOptimizer } from '../utils/StorageOptimizer.js';
 
 // CSV/UI utility functions
 function shuffleArray(array) {
@@ -364,10 +376,15 @@ const savedBrackets = ref([]); // List of saved brackets
 const currentBracketId = ref(null); // ID of currently loaded bracket
 const loadedFromURL = ref(false); // Whether current bracket was loaded from URL
 const showAutoSaveNotice = ref(false); // Show auto-save success notice
+const storageUsage = ref(null); // Storage usage info
 
 // Computed
 const availableSecondaryFields = computed(() => {
     return csvHeaders.value.filter(header => header !== taskNameColumn.value);
+});
+
+const showStorageWarning = computed(() => {
+    return storageUsage.value && storageUsage.value.usagePercent > 80;
 });
 
 const currentPair = computed(() => {
@@ -744,8 +761,9 @@ function saveBracket() {
             currentBracketId.value = BracketStorage.saveBracket(bracketData);
         }
         
-        // Refresh the saved brackets list
+        // Refresh the saved brackets list and storage usage
         loadSavedBrackets();
+        updateStorageUsage();
     } catch (error) {
         console.error('Error saving bracket:', error);
     }
@@ -755,6 +773,7 @@ function deleteBracket(bracketId) {
     if (confirm('Are you sure you want to delete this bracket? This action cannot be undone.')) {
         BracketStorage.deleteBracket(bracketId);
         loadSavedBrackets();
+        updateStorageUsage();
         
         // If we deleted the currently loaded bracket, clear the ID
         if (currentBracketId.value === bracketId) {
@@ -935,6 +954,7 @@ function loadBracketFromURL() {
             
             // Refresh the saved brackets list to show the new bracket
             loadSavedBrackets();
+            updateStorageUsage();
         } catch (error) {
             console.error('Error auto-saving URL bracket:', error);
             // If auto-save fails, still show the manual save option
@@ -970,6 +990,7 @@ function saveCurrentBracketLocally() {
         currentBracketId.value = BracketStorage.saveBracket(bracketData);
         loadedFromURL.value = false;
         loadSavedBrackets(); // Refresh the list
+        updateStorageUsage();
         
         alert('Bracket saved locally! You can now access it from the saved brackets list.');
     } catch (error) {
@@ -982,9 +1003,26 @@ function dismissURLNotice() {
     loadedFromURL.value = false;
 }
 
+function updateStorageUsage() {
+    storageUsage.value = StorageOptimizer.getStorageUsage();
+}
+
+function cleanupStorage() {
+    const deletedCount = StorageOptimizer.cleanupOldBrackets(3);
+    updateStorageUsage();
+    loadSavedBrackets();
+    
+    if (deletedCount > 0) {
+        alert(`Cleaned up ${deletedCount} old brackets to free up storage space.`);
+    } else {
+        alert('No old brackets to clean up.');
+    }
+}
+
 // Initialize saved brackets on mount and check for URL bracket
 onMounted(() => {
     loadSavedBrackets();
+    updateStorageUsage();
     
     // Check if there's a bracket in the URL
     const urlBracketLoaded = loadBracketFromURL();

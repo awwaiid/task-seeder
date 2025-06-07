@@ -7,7 +7,7 @@ test('app loads successfully', async ({ page }) => {
   await expect(page.locator('h1')).toContainText('Task Bracketology Ranking Tool');
   
   // Check that the load tasks section is visible
-  await expect(page.locator('h2')).toContainText('Load Your Tasks');
+  await expect(page.locator('h2')).toContainText('Start New Bracket');
   
   // Check that file input exists (may be hidden by CSS)
   await expect(page.locator('input[type="file"]')).toHaveCount(1);
