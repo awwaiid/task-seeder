@@ -43,3 +43,14 @@ npm run build
 ```
 
 The built files will be in the `dist/` directory.
+
+## Ideas
+
+* Rename to TaskSeeder (hosted at taskseeder.com)
+* Use the logo
+* Have sign ups and accounts
+* Integrate with asana or others
+  * Given a filtered list import it
+  * Rank the items
+  * Push back the updated priorities (ranking)
+

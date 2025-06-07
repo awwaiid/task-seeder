@@ -178,7 +178,18 @@
             </div>
             
             <p><strong>Total matches needed:</strong> {{ calculateTotalMatchesForUI() }}</p>
-            <button @click="startBracketology" :disabled="!taskNameColumn || !tournamentName.trim()">Start Task Ranking</button>
+            
+            <!-- Progress indicator for large tournaments -->
+            <div v-if="tournamentSetupProgress" style="margin: 20px 0; padding: 15px; background-color: #e3f2fd; border-radius: 6px; border-left: 4px solid #2196f3;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="spinner"></div>
+                    <span style="color: #1976d2; font-weight: 500;">{{ tournamentSetupProgress }}</span>
+                </div>
+            </div>
+            
+            <button @click="startBracketology" :disabled="!taskNameColumn || !tournamentName.trim() || !!tournamentSetupProgress">
+                {{ tournamentSetupProgress ? 'Setting up...' : 'Start Task Ranking' }}
+            </button>
         </div>
     </div>
     
@@ -377,6 +388,7 @@ const currentBracketId = ref(null); // ID of currently loaded bracket
 const loadedFromURL = ref(false); // Whether current bracket was loaded from URL
 const showAutoSaveNotice = ref(false); // Show auto-save success notice
 const storageUsage = ref(null); // Storage usage info
+const tournamentSetupProgress = ref(''); // Progress message for large tournament setup
 
 // Performance optimization: debounced auto-save
 let saveTimeout = null;
@@ -523,7 +535,7 @@ function startBracketology() {
         tasks.value = shuffleArray(tasks.value);
     }
     
-    // Create new tournament instance
+    // Create new tournament instance (now fast for all sizes)
     tournament.value = new Tournament(tournamentType.value, tasks.value);
     
     // Initialize match history for all tasks
@@ -543,8 +555,20 @@ function startBracketology() {
         currentPhase.value = 'results';
     }
     
-    // Auto-save the bracket
-    saveBracket();
+    // Auto-save the bracket (with size check for large tournaments)
+    try {
+        saveBracket();
+    } catch (error) {
+        if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
+            console.warn('Tournament too large to auto-save. Continuing without auto-save.', error);
+            // Show a brief notice but don't block the tournament
+            setTimeout(() => {
+                alert('Note: This tournament is too large to auto-save. Your progress will be lost if you refresh the page, but you can still complete the tournament.');
+            }, 1000);
+        } else {
+            console.error('Error auto-saving bracket:', error);
+        }
+    }
 }
 
 
@@ -671,7 +695,15 @@ function restartBracketology() {
         saveTimeout = null;
     }
     if (currentBracketId.value && tournament.value) {
-        saveBracket();
+        try {
+            saveBracket();
+        } catch (error) {
+            if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
+                console.warn('Tournament too large to save on restart. Progress will be lost.', error);
+            } else {
+                console.error('Error saving bracket on restart:', error);
+            }
+        }
     }
     
     currentPhase.value = 'setup';
@@ -801,7 +833,17 @@ function debouncedSave() {
     
     // Set new timeout
     saveTimeout = setTimeout(() => {
-        saveBracket();
+        try {
+            saveBracket();
+        } catch (error) {
+            if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
+                console.warn('Tournament too large to save during play. Skipping auto-save.', error);
+                // Stop trying to auto-save for this session
+                clearTimeout(saveTimeout);
+            } else {
+                console.error('Error saving bracket during play:', error);
+            }
+        }
         saveTimeout = null;
     }, SAVE_DEBOUNCE_MS);
 }
@@ -1078,3 +1120,19 @@ onMounted(() => {
     }
 });
 </script>
+
+<style scoped>
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #2196f3;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
