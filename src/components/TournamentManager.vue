@@ -239,68 +239,65 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="(task, index) in finalRankings" :key="index">
-                        <td><strong>{{ index + 1 }}</strong></td>
-                        <td>
-                            {{ getTaskTitle(task) }}
-                            <button 
-                                @click="viewTaskHistory(task)" 
-                                class="history-button"
-                                style="margin-left: 8px; padding: 2px 6px; font-size: 12px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;"
-                                title="View match history"
-                            >
-                                📊
-                            </button>
-                        </td>
-                        <td v-for="field in selectedSecondaryFields" :key="field">
-                            {{ task[field] || '-' }}
-                        </td>
-                    </tr>
+                    <template v-for="(task, index) in finalRankings" :key="index">
+                        <tr 
+                            @click="toggleTaskHistory(task)" 
+                            class="clickable-row"
+                            :class="{ 'expanded': expandedTaskHistory === task }"
+                            :title="expandedTaskHistory === task ? 'Click to hide match history' : 'Click to view match history'"
+                        >
+                            <td><strong>{{ index + 1 }}</strong></td>
+                            <td>
+                                {{ getTaskTitle(task) }}
+                                <span class="expand-indicator" :class="{ 'expanded': expandedTaskHistory === task }">
+                                    {{ expandedTaskHistory === task ? '▼' : '▶' }}
+                                </span>
+                            </td>
+                            <td v-for="field in selectedSecondaryFields" :key="field">
+                                {{ task[field] || '-' }}
+                            </td>
+                        </tr>
+                        <!-- Inline History Row -->
+                        <tr v-if="expandedTaskHistory === task" class="history-row">
+                            <td :colspan="2 + selectedSecondaryFields.length" style="padding: 0;">
+                                <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #3498db;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                        <h4 style="margin: 0; color: #2c3e50;">Match History: {{ getTaskTitle(task) }}</h4>
+                                        <button @click="expandedTaskHistory = null" style="background: #e74c3c; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                                            ✕
+                                        </button>
+                                    </div>
+                                    
+                                    <div v-if="matchHistory.has(task) && matchHistory.get(task).length > 0">
+                                        <div v-for="(match, matchIndex) in matchHistory.get(task)" :key="matchIndex" 
+                                             style="background: white; margin-bottom: 6px; padding: 10px; border-radius: 4px; border-left: 3px solid #3498db; font-size: 14px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <span style="font-weight: bold; color: #2c3e50; min-width: 60px;">Round {{ match.round }}:</span>
+                                                
+                                                <span v-if="match.result === 'BYE'" style="color: #7f8c8d; font-style: italic;">
+                                                    Received a bye (automatic advancement)
+                                                </span>
+                                                
+                                                <span v-else-if="match.result === 'W'" style="color: #27ae60;">
+                                                    <strong>WON</strong> vs {{ getTaskTitle(match.opponent) }}
+                                                </span>
+                                                
+                                                <span v-else-if="match.result === 'L'" style="color: #e74c3c;">
+                                                    <strong>LOST</strong> to {{ getTaskTitle(match.opponent) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div v-else style="color: #7f8c8d; font-style: italic; text-align: center; padding: 10px;">
+                                        No match history available for this task.
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
                 </tbody>
             </table>
-        </div>
-        
-        <!-- Match History Section -->
-        <div v-if="selectedTaskHistory" style="margin-top: 30px; background: #f8f9fa; padding: 20px; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3>Match History: {{ getTaskTitle(selectedTaskHistory) }}</h3>
-                <button @click="selectedTaskHistory = null" style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
-                    ✕ Close
-                </button>
-            </div>
-            
-            <div v-if="matchHistory.has(selectedTaskHistory) && matchHistory.get(selectedTaskHistory).length > 0">
-                <div v-for="(match, index) in matchHistory.get(selectedTaskHistory)" :key="index" 
-                     style="background: white; margin-bottom: 8px; padding: 12px; border-radius: 5px; border-left: 4px solid #3498db;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-weight: bold; color: #2c3e50;">Round {{ match.round }}:</span>
-                        
-                        <span v-if="match.result === 'BYE'" style="color: #7f8c8d; font-style: italic;">
-                            Received a bye (automatic advancement)
-                        </span>
-                        
-                        <span v-else style="display: flex; align-items: center; gap: 8px;">
-                            <span>vs</span>
-                            <span style="background: #ecf0f1; padding: 4px 8px; border-radius: 3px;">
-                                {{ getTaskTitle(match.opponent) }}
-                            </span>
-                            <span :style="{
-                                color: match.result === 'W' ? '#27ae60' : '#e74c3c',
-                                fontWeight: 'bold',
-                                padding: '2px 6px',
-                                borderRadius: '3px',
-                                background: match.result === 'W' ? '#d5f4e6' : '#fceaea'
-                            }">
-                                {{ match.result === 'W' ? '🏆 WON' : '❌ LOST' }}
-                            </span>
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            <div v-else style="color: #7f8c8d; font-style: italic;">
-                No matches recorded for this task.
-            </div>
         </div>
         
         <div style="text-align: center; margin-top: 30px;">
@@ -380,7 +377,7 @@ const tasks = ref([]);
 const tournament = ref(null); // New TournamentRunner instance
 const currentMatch = ref(null); // Current match from tournament
 const matchHistory = ref(new Map()); // Map of task -> array of match records
-const selectedTaskHistory = ref(null); // Currently selected task for viewing history
+const expandedTaskHistory = ref(null); // Currently expanded task for viewing history inline
 const isDragOver = ref(false);
 const fileInput = ref(null);
 const savedBrackets = ref([]); // List of saved brackets
@@ -625,8 +622,12 @@ function getTaskTitle(task) {
     return task[taskNameColumn.value] || 'Untitled Task';
 }
 
-function viewTaskHistory(task) {
-    selectedTaskHistory.value = task;
+function toggleTaskHistory(task) {
+    if (expandedTaskHistory.value === task) {
+        expandedTaskHistory.value = null; // Collapse if already expanded
+    } else {
+        expandedTaskHistory.value = task; // Expand this task
+    }
 }
 
 function exportResults() {
@@ -716,7 +717,7 @@ function restartBracketology() {
     tournament.value = null;
     currentMatch.value = null;
     matchHistory.value = new Map();
-    selectedTaskHistory.value = null;
+    expandedTaskHistory.value = null;
     seedingMethod.value = 'order';
     currentBracketId.value = null;
     loadedFromURL.value = false;
@@ -1118,6 +1119,11 @@ onMounted(() => {
     if (urlBracketLoaded) {
         URLBracketSharing.clearBracketFromURL();
     }
+});
+
+// Expose functions for parent component
+defineExpose({
+    restartBracketology
 });
 </script>
 

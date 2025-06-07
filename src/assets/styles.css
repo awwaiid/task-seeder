@@ -19,15 +19,82 @@ body {
     padding: 20px;
 }
 
-h1, h2, h3 {
+h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
     color: var(--primary);
+    margin: 0;
+    letter-spacing: -0.02em;
 }
 
-h1 {
-    text-align: center;
+h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0 0 1.5rem 0;
+    letter-spacing: -0.01em;
+}
+
+h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0 0 1rem 0;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
     margin-bottom: 30px;
+    padding-bottom: 20px;
     border-bottom: 2px solid var(--secondary);
-    padding-bottom: 10px;
+}
+
+.clickable-header {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    border-radius: 8px;
+    padding: 10px;
+    margin: -10px;
+}
+
+.clickable-header:hover {
+    opacity: 0.8;
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+.header-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.subtitle {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: -0.5rem 0 0 0;
+    font-weight: 400;
+    font-style: italic;
+}
+
+.app-header .logo {
+    height: 56px;
+    width: 56px;
+    background: transparent;
+    border-radius: 8px;
+    padding: 4px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.app-header h1 {
+    margin: 0;
+    text-align: left;
+    border-bottom: none;
+    padding-bottom: 0;
+    font-size: 2.25rem;
+    font-weight: 700;
 }
 
 .container {
@@ -46,6 +113,18 @@ h1 {
     margin-bottom: 20px;
     transition: border-color 0.3s;
     cursor: pointer;
+}
+
+.file-upload-area strong {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--secondary);
+}
+
+.file-upload-area p {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0.5rem 0 0 0;
 }
 
 .file-upload-area:hover {
@@ -218,6 +297,52 @@ button.success:hover {
     background-color: #e8f4f8;
 }
 
+.results-table tr.history-row {
+    background-color: transparent;
+}
+
+.results-table tr.history-row:hover {
+    background-color: transparent;
+}
+
+.results-table tr.history-row td {
+    border-top: none;
+}
+
+.results-table tr.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.results-table tr.clickable-row:hover {
+    background-color: #e8f4f8 !important;
+}
+
+.results-table tr.clickable-row.expanded {
+    background-color: #ddeef7;
+}
+
+.expand-indicator {
+    margin-left: 8px;
+    color: #3498db;
+    font-weight: bold;
+    font-size: 12px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    text-align: center;
+    line-height: 12px;
+}
+
+.expand-indicator.expanded {
+    transform: rotate(0deg);
+}
+
+.expand-indicator:not(.expanded) {
+    transform: rotate(0deg);
+}
+
 .data-preview {
     max-height: 200px;
     overflow-y: auto;
@@ -256,11 +381,99 @@ button.success:hover {
 }
 
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
+    .app-header {
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+    }
+    
+    .app-header h1 {
+        font-size: 1.875rem;
+    }
+    
+    .subtitle {
+        font-size: 0.875rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .container {
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    
     .task-choice {
         flex-direction: column;
     }
     
     .vs {
         margin: 15px 0;
+    }
+    
+    /* Data preview table improvements for mobile */
+    .data-preview {
+        padding: 10px;
+        margin: 10px 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .data-preview table {
+        min-width: 100%;
+        font-size: 10px;
+    }
+    
+    .data-preview th,
+    .data-preview td {
+        padding: 3px;
+        font-size: 9px;
+        min-width: 60px;
+        word-break: break-word;
+    }
+    
+    .data-preview td {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* Results table improvements */
+    .results-table {
+        font-size: 14px;
+    }
+    
+    .results-table th,
+    .results-table td {
+        padding: 8px;
+    }
+    
+    /* Form elements */
+    select, input[type="text"] {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Button improvements */
+    button {
+        font-size: 14px;
+        padding: 10px 16px;
+    }
+    
+    .task-button {
+        padding: 20px;
+        min-height: 100px;
+        font-size: 15px;
+    }
+    
+    /* Debug info can be smaller on mobile */
+    .debug-info {
+        font-size: 10px;
+        padding: 8px;
     }
 }
