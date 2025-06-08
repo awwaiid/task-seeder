@@ -25,6 +25,7 @@ export class Tournament {
     _currentRound: number;
     currentMatch: number;
     progressCallback: ((progress: any) => void) | null;
+    taskNameColumn?: string;
 
     // Computed property for compatibility
     get matches(): any[] {
@@ -37,6 +38,7 @@ export class Tournament {
         }
         
         this.progressCallback = options.progressCallback || null
+        this.taskNameColumn = options.taskNameColumn
         
         this.type = type // 'single' or 'double'
         this.originalEntrants = [...entrants]
@@ -114,19 +116,18 @@ export class Tournament {
             } else {
                 try {
                     const doubleElim = new (DoubleElimination as any)(entrants.length)
-                    this.bracket = doubleElim.bracket
+                    // The tournament-pairings library returns the bracket directly, not as a .bracket property
+                    this.bracket = Array.isArray(doubleElim) ? doubleElim : (doubleElim.bracket || []);
                     
                     // Add participants to bracket
                     this._addParticipantsToBracket(entrants)
+                    
                     this.lossCount = new Map()
                     entrants.forEach((entrant: any) => this.lossCount.set(entrant, 0))
                 } catch (error) {
                     console.error('Failed to create double elimination with tournament-pairings, using single elimination fallback:', error)
                     this.type = 'single'
                     const singleElim = new (SingleElimination as any)(entrants.length)
-                    console.log('Fallback singleElim:', singleElim);
-                    console.log('Fallback singleElim.bracket:', singleElim.bracket, 'Type:', typeof singleElim.bracket, 'Is array:', Array.isArray(singleElim.bracket));
-                    console.log('Fallback singleElim is array:', Array.isArray(singleElim));
                     
                     // The tournament-pairings library returns the bracket directly, not as a .bracket property
                     this.bracket = Array.isArray(singleElim) ? singleElim : (singleElim.bracket || []);
@@ -137,9 +138,6 @@ export class Tournament {
         } else {
             // Single elimination
             const singleElim = new (SingleElimination as any)(entrants.length)
-            console.log('singleElim:', singleElim);
-            console.log('singleElim.bracket:', singleElim.bracket, 'Type:', typeof singleElim.bracket, 'Is array:', Array.isArray(singleElim.bracket));
-            console.log('singleElim is array:', Array.isArray(singleElim));
             
             // The tournament-pairings library returns the bracket directly, not as a .bracket property
             this.bracket = Array.isArray(singleElim) ? singleElim : (singleElim.bracket || []);
@@ -181,9 +179,10 @@ export class Tournament {
             
             if (this._isMatchCompleted(match)) continue
             
-            // Skip matches with null, undefined, or BYE participants
+            // Skip matches with null, undefined, BYE, or untitled participants
             if (!match.player1 || !match.player2) continue
             if (this._isBYEParticipant(match.player1) || this._isBYEParticipant(match.player2)) continue
+            if (this._isUntitledParticipant(match.player1, this.taskNameColumn) || this._isUntitledParticipant(match.player2, this.taskNameColumn)) continue
             
             // Move to next index for future calls
             this.nextMatchIndex = i + 1
@@ -225,7 +224,7 @@ export class Tournament {
         }
         
         // Also check if we have no more valid matches to play
-        // (all remaining matches involve BYE participants or are completed)
+        // (all remaining matches involve BYE/untitled participants or are completed)
         let hasValidMatches = false;
         for (let i = this.nextMatchIndex; i < this.bracket.length; i++) {
             const match = this.bracket[i];
@@ -233,6 +232,7 @@ export class Tournament {
             if (this._isMatchCompleted(match)) continue;
             if (!match.player1 || !match.player2) continue;
             if (this._isBYEParticipant(match.player1) || this._isBYEParticipant(match.player2)) continue;
+            if (this._isUntitledParticipant(match.player1, this.taskNameColumn) || this._isUntitledParticipant(match.player2, this.taskNameColumn)) continue;
             
             hasValidMatches = true;
             break;
@@ -242,11 +242,30 @@ export class Tournament {
     }
 
     getRankings(): Participant[] {
-        // Simple ranking based on elimination order
-        const rankings = [...this.eliminationOrder].reverse()
-        if (this.remainingParticipants.length > 0) {
-            rankings.push(...this.remainingParticipants)
-        }
+        // For proper double elimination ranking, we need to consider actual match participation
+        const rankings: Participant[] = []
+        
+        // Get participants who actually played matches (winners and losers)
+        const participantsWhoPlayed = new Set<Participant>()
+        this.completedMatches.forEach(match => {
+            participantsWhoPlayed.add(match.player1)
+            participantsWhoPlayed.add(match.player2)
+        })
+        
+        // Separate remaining participants into those who played and those who didn't
+        const remainingWhoPlayed = this.remainingParticipants.filter(p => participantsWhoPlayed.has(p))
+        const remainingWhoDidntPlay = this.remainingParticipants.filter(p => !participantsWhoPlayed.has(p))
+        
+        // For double elimination, rank based on actual tournament participation:
+        // 1. Remaining participants who played matches (true winners)
+        rankings.push(...remainingWhoPlayed)
+        
+        // 2. Eliminated participants in reverse elimination order (last eliminated = higher rank)
+        rankings.push(...[...this.eliminationOrder].reverse())
+        
+        // 3. Participants who got automatic advancement without playing (lowest priority)
+        rankings.push(...remainingWhoDidntPlay)
+        
         return rankings
     }
 
@@ -342,14 +361,27 @@ export class Tournament {
     // Helper methods (simplified implementations)
     private _addParticipantsToBracket(entrants: Participant[]): void {
         // Replace numeric indices with actual entrant objects
+        // The tournament-pairings library uses 1-based indexing, so we need to convert to 0-based
         for (const match of this.bracket) {
-            // If player1 is a number (index), replace with actual entrant
-            if (typeof match.player1 === 'number' && match.player1 < entrants.length) {
-                match.player1 = entrants[match.player1]
+            // If player1 is a number (1-based index), replace with actual entrant or null if out of bounds
+            if (typeof match.player1 === 'number') {
+                const zeroBasedIndex = match.player1 - 1; // Convert 1-based to 0-based
+                if (zeroBasedIndex >= 0 && zeroBasedIndex < entrants.length) {
+                    match.player1 = entrants[zeroBasedIndex]
+                } else {
+                    // Out of bounds index - set to null to indicate a BYE/empty slot
+                    match.player1 = null
+                }
             }
-            // If player2 is a number (index), replace with actual entrant
-            if (typeof match.player2 === 'number' && match.player2 < entrants.length) {
-                match.player2 = entrants[match.player2]
+            // If player2 is a number (1-based index), replace with actual entrant or null if out of bounds
+            if (typeof match.player2 === 'number') {
+                const zeroBasedIndex = match.player2 - 1; // Convert 1-based to 0-based
+                if (zeroBasedIndex >= 0 && zeroBasedIndex < entrants.length) {
+                    match.player2 = entrants[zeroBasedIndex]
+                } else {
+                    // Out of bounds index - set to null to indicate a BYE/empty slot
+                    match.player2 = null
+                }
             }
         }
     }
@@ -415,6 +447,28 @@ export class Tournament {
             for (const field of nameFields) {
                 if (participant[field] === 'BYE') return true;
             }
+        }
+        
+        return false;
+    }
+
+    private _isUntitledParticipant(participant: any, taskNameColumn?: string): boolean {
+        if (!participant) return false;
+        
+        // Check if it's an object that would display as "Untitled Task"
+        if (typeof participant === 'object') {
+            // Check the task name column specifically if provided
+            if (taskNameColumn && (!participant[taskNameColumn] || participant[taskNameColumn].trim() === '')) {
+                return true;
+            }
+            
+            // Also check common name fields
+            const nameFields = ['name', 'title', 'task', 'summary'];
+            const hasValidName = nameFields.some(field => 
+                participant[field] && participant[field].toString().trim() !== ''
+            );
+            
+            return !hasValidName;
         }
         
         return false;

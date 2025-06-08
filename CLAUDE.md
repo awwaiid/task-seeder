@@ -13,6 +13,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run test:e2e` - Run Playwright end-to-end tests
 - `npm run test:e2e-ui` - Run Playwright tests with UI
 
+## Workflow Notes
+
+- I am already running `npm run dev` in another tab, you don't need to run it
+
 ## Application Architecture
 
 **TaskSeeder** is a Vue 3 application using tournament-style bracket elimination to rank tasks. Users upload CSV files and make head-to-head comparisons to determine priority rankings.
@@ -51,3 +55,4 @@ Multi-layer approach: in-memory tournament state, LocalStorage persistence with 
 - Tests mock PapaParse, DOM APIs (URL, Blob), and browser functions (alert, confirm)
 - Unit tests use Vitest with JSDOM environment
 - E2E tests use Playwright against preview server (localhost:4173)
+- Use mcp playwright to do manual interactive testing and validation

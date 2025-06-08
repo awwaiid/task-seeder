@@ -746,7 +746,9 @@ function startBracketology() {
     // Create new tournament instance (now fast for all sizes)
     try {
         console.log('Creating tournament with:', { type: tournamentType.value, tasks: tasks.value });
-        tournament.value = new Tournament(tournamentType.value, tasks.value);
+        tournament.value = new Tournament(tournamentType.value, tasks.value, {
+            taskNameColumn: taskNameColumn.value
+        });
         console.log('Tournament created successfully:', tournament.value);
     } catch (error) {
         console.error('Error creating tournament:', error);
@@ -980,7 +982,9 @@ function loadBracket(bracketId) {
         
         // Restore tournament with proper Tournament instance
         if (state.tournament) {
-            tournament.value = new Tournament(state.tournament.type, state.tournament.originalEntrants);
+            tournament.value = new Tournament(state.tournament.type, state.tournament.originalEntrants, {
+                taskNameColumn: taskNameColumn.value
+            });
             // Copy over the tournament state
             Object.assign(tournament.value, state.tournament);
             
@@ -1192,7 +1196,9 @@ function loadBracketFromURL() {
         
         // Restore tournament with proper Tournament instance
         if (state.tournament) {
-            tournament.value = new Tournament(state.tournament.type, state.tournament.originalEntrants);
+            tournament.value = new Tournament(state.tournament.type, state.tournament.originalEntrants, {
+                taskNameColumn: taskNameColumn.value
+            });
             // Copy over the tournament state
             Object.assign(tournament.value, state.tournament);
             
