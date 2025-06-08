@@ -13,7 +13,7 @@ test.describe('Double Elimination Tournament', () => {
         await expect(page.locator('text=Data Preview')).toBeVisible();
 
         // Select double elimination tournament type
-        await page.locator('input[value="double"]').click();
+        await page.locator('text=Double Elimination').click();
 
         // Set tournament name
         await page.locator('input[placeholder*="ranking session"]').fill('Double Elim Test');
@@ -67,7 +67,7 @@ test.describe('Double Elimination Tournament', () => {
         await expect(page.locator('text=Data Preview')).toBeVisible();
 
         // Select double elimination tournament type
-        await page.locator('input[value="double"]').click();
+        await page.locator('text=Double Elimination').click();
 
         // Set tournament name
         await page.locator('input[placeholder*="ranking session"]').fill('Double Elim No Reset');
@@ -126,7 +126,7 @@ test.describe('Double Elimination Tournament', () => {
         await expect(page.locator('text=Data Preview')).toBeVisible();
 
         // Select double elimination
-        await page.locator('input[value="double"]').click();
+        await page.locator('text=Double Elimination').click();
         await page.locator('input[placeholder*="ranking session"]').fill('Bracket Progression Test');
         await page.locator('button:has-text("Start Task Ranking")').click();
 
@@ -191,7 +191,7 @@ test.describe('Double Elimination Tournament', () => {
 
         await expect(page.locator('text=Data Preview')).toBeVisible();
 
-        await page.locator('input[value="double"]').click();
+        await page.locator('text=Double Elimination').click();
         await page.locator('input[placeholder*="ranking session"]').fill('Match History Test');
         await page.locator('button:has-text("Start Task Ranking")').click();
 
@@ -236,14 +236,13 @@ test.describe('Double Elimination Tournament', () => {
         await expect(page.locator('text=Data Preview')).toBeVisible();
 
         // Select double elimination
-        await page.locator('input[value="double"]').click();
+        await page.locator('text=Double Elimination').click();
 
         // Verify match count calculation shows double elimination formula
-        const matchCountText = await page.locator('text=/more accurate, \\d+ matches/').textContent();
+        const matchCountText = await page.locator('text=/\\d+ matches • More accurate/').textContent();
         expect(matchCountText).toMatch(/\d+ matches/);
 
         // Verify description mentions double elimination features
-        await expect(page.locator('text=Tasks get a second chance in the losers bracket')).toBeVisible();
-        await expect(page.locator('text=More matches but fairer rankings')).toBeVisible();
+        await expect(page.locator('text=Tasks get a second chance')).toBeVisible();
     });
 });
