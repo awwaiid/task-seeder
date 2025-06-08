@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import alloy from 'alloy-lang'
+import { describe, it, expect } from 'vitest';
+import alloy from 'alloy-lang';
 
 describe('TournamentRunner Alloy Model', () => {
   const tournamentRunnerModel = `
@@ -125,7 +125,7 @@ describe('TournamentRunner Alloy Model', () => {
         stutter
       )
     }
-  `
+  `;
 
   it('should have basic structure', () => {
     const simpleModel = `
@@ -138,63 +138,69 @@ describe('TournamentRunner Alloy Model', () => {
       }
       
       run {} for 2 Player, 1 Match
-    `
-    
-    const result = alloy.eval(simpleModel)
-    expect(result).toBeDefined()
-    expect(result.instances).toBeDefined()
-    expect(result.instances.length).toBeGreaterThan(0)
-  })
+    `;
+
+    const result = alloy.eval(simpleModel);
+    expect(result).toBeDefined();
+    expect(result.instances).toBeDefined();
+    expect(result.instances.length).toBeGreaterThan(0);
+  });
 
   it.skip('should initialize 2-player tournament', () => {
-    const model = tournamentRunnerModel + `
+    const model =
+      tournamentRunnerModel +
+      `
       run {
         init
         #originalEntrants = 2
       } for exactly 2 Player, exactly 1 Match, 2 steps
-    `
-    
-    const result = alloy.eval(model)
-    expect(result).toBeDefined()
-    
+    `;
+
+    const result = alloy.eval(model);
+    expect(result).toBeDefined();
+
     // Debug the raw result
-    console.log('Raw result:', JSON.stringify(result, null, 2))
-    
+    console.log('Raw result:', JSON.stringify(result, null, 2));
+
     if (!result.instances) {
-      console.log('No instances found - model may be unsatisfiable')
-      expect(result).toHaveProperty('instances')
+      console.log('No instances found - model may be unsatisfiable');
+      expect(result).toHaveProperty('instances');
     } else {
-      expect(result.instances.length).toBeGreaterThan(0)
+      expect(result.instances.length).toBeGreaterThan(0);
     }
-  })
+  });
 
   it.skip('should handle 2-player tournament completion', () => {
-    const model = tournamentRunnerModel + `
+    const model =
+      tournamentRunnerModel +
+      `
       run {
         init
         #originalEntrants = 2
         eventually isComplete
       } for exactly 2 Player, exactly 1 Match, 3 steps
-    `
-    
-    const result = alloy.eval(model)
-    expect(result).toBeDefined()
-    expect(result.instances).toBeDefined()
-    expect(result.instances.length).toBeGreaterThan(0)
-  })
+    `;
+
+    const result = alloy.eval(model);
+    expect(result).toBeDefined();
+    expect(result.instances).toBeDefined();
+    expect(result.instances.length).toBeGreaterThan(0);
+  });
 
   it.skip('should handle 4-player tournament progression', () => {
-    const model = tournamentRunnerModel + `
+    const model =
+      tournamentRunnerModel +
+      `
       run {
         init
         #originalEntrants = 4
         eventually isComplete
       } for exactly 4 Player, exactly 3 Match, 6 steps
-    `
-    
-    const result = alloy.eval(model)
-    expect(result).toBeDefined()
-    expect(result.instances).toBeDefined()
-    expect(result.instances.length).toBeGreaterThan(0)
-  })
-})
+    `;
+
+    const result = alloy.eval(model);
+    expect(result).toBeDefined();
+    expect(result.instances).toBeDefined();
+    expect(result.instances.length).toBeGreaterThan(0);
+  });
+});

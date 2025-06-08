@@ -32,9 +32,8 @@ The built files will be in the `dist/` directory.
 
 ## Future Ideas
 
-* User accounts and sign-ups
-* Integrate with project management tools:
-  * Import filtered task lists from Asana, Linear, Jira, etc.
-  * Rank the items using tournament brackets
-  * Push back the updated priorities to the source system
-
+- User accounts and sign-ups
+- Integrate with project management tools:
+  - Import filtered task lists from Asana, Linear, Jira, etc.
+  - Rank the items using tournament brackets
+  - Push back the updated priorities to the source system

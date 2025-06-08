@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 - `npm run dev` - Start Vite development server
-- `npm run build` - Build for production  
+- `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm test` - Run unit tests with Vitest
 - `npm run test:watch` - Run tests in watch mode
@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **TaskSeeder** is a Vue 3 application using tournament-style bracket elimination to rank tasks. Users upload CSV files and make head-to-head comparisons to determine priority rankings.
 
 ### Core Components Structure
+
 - **App.vue**: Root component managing view routing (main/about)
 - **TournamentManager.vue**: Main orchestrator handling all tournament phases (setup → matchups → results)
 - **TournamentProgress.vue**: Displays round/match progress during tournaments
@@ -29,20 +30,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **About.vue**: Static about page with feature explanations
 
 ### Key Utilities
+
 - **TournamentRunner.js**: Tournament logic engine using `tournament-pairings` library
 - **BracketStorage.js**: LocalStorage persistence with compression and optimization
-- **URLBracketSharing.js**: URL-based bracket sharing with encoding/compression  
+- **URLBracketSharing.js**: URL-based bracket sharing with encoding/compression
 - **StorageOptimizer.js**: Storage usage monitoring and automatic cleanup
 
 ### Data Flow Architecture
+
 1. **Setup**: CSV upload → PapaParse → auto-detect columns → configure tournament options
 2. **Tournament**: Create Tournament instance → present matchups → collect results → track history
 3. **Results**: Display final rankings → export CSV → share via compressed URLs
 
 ### Storage System
+
 Multi-layer approach: in-memory tournament state, LocalStorage persistence with debounced auto-save (10s intervals), and URL encoding for sharing. Large tournaments (>storage quota) skip auto-save to prevent quota errors.
 
 ### Performance Optimizations
+
 - Debounced auto-save during rapid matchup sequences
 - Pre-computed tournament structures for O(1) match lookups
 - Participant index compression in storage

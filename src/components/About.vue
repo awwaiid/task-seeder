@@ -1,19 +1,28 @@
 <template>
   <div class="container about-page">
-    <button @click="$emit('go-home')" class="back-button">← Back to TaskSeeder</button>
-    
+    <button class="back-button" @click="$emit('go-home')">
+      ← Back to TaskSeeder
+    </button>
+
     <h1>About TaskSeeder</h1>
-    
+
     <div class="intro-section">
-      <p class="lead">TaskSeeder helps you prioritize your backlog using tournament-style bracket elimination. Let your tasks compete head-to-head until you have a clear ranking.</p>
+      <p class="lead">
+        TaskSeeder helps you prioritize your backlog using tournament-style
+        bracket elimination. Let your tasks compete head-to-head until you have
+        a clear ranking.
+      </p>
     </div>
 
     <div class="how-it-works">
       <h2>How It Works</h2>
-      
+
       <div class="step">
         <h3>1. Upload Your Tasks</h3>
-        <p>Export your tasks from any project management tool (Asana, Linear, Jira, etc.) as a CSV file and upload it to TaskSeeder.</p>
+        <p>
+          Export your tasks from any project management tool (Asana, Linear,
+          Jira, etc.) as a CSV file and upload it to TaskSeeder.
+        </p>
         <div class="visual-guide">
           <div class="mock-upload">
             <div class="upload-box">📁 Click to upload or drag CSV here</div>
@@ -26,15 +35,19 @@
 
       <div class="step">
         <h3>2. Choose Your Tournament Style</h3>
-        <p>Select between single elimination (faster) or double elimination (more accurate rankings). Configure which task fields you want to see during comparisons.</p>
+        <p>
+          Select between single elimination (faster) or double elimination (more
+          accurate rankings). Configure which task fields you want to see during
+          comparisons.
+        </p>
         <div class="visual-guide">
           <div class="tournament-options">
             <div class="option">
-              <strong>Single Elimination</strong><br>
+              <strong>Single Elimination</strong><br />
               Fast • Each task eliminated after one loss
             </div>
             <div class="option">
-              <strong>Double Elimination</strong><br>
+              <strong>Double Elimination</strong><br />
               Accurate • Tasks get a second chance
             </div>
           </div>
@@ -43,16 +56,19 @@
 
       <div class="step">
         <h3>3. Make Head-to-Head Choices</h3>
-        <p>Compare two tasks at a time and choose which is more important. TaskSeeder handles the tournament bracket logic behind the scenes.</p>
+        <p>
+          Compare two tasks at a time and choose which is more important.
+          TaskSeeder handles the tournament bracket logic behind the scenes.
+        </p>
         <div class="visual-guide">
           <div class="mock-matchup">
             <div class="task-option">
-              <strong>Fix login bug</strong><br>
+              <strong>Fix login bug</strong><br />
               <small>Priority: High • Complexity: Low</small>
             </div>
             <div class="vs">VS</div>
             <div class="task-option">
-              <strong>Add dark mode</strong><br>
+              <strong>Add dark mode</strong><br />
               <small>Priority: Medium • Complexity: High</small>
             </div>
           </div>
@@ -61,20 +77,32 @@
 
       <div class="step">
         <h3>4. Get Your Rankings</h3>
-        <p>After all matchups are complete, see your tasks ranked from highest to lowest priority. Export the results or share them with your team.</p>
+        <p>
+          After all matchups are complete, see your tasks ranked from highest to
+          lowest priority. Export the results or share them with your team.
+        </p>
         <div class="visual-guide">
           <div class="mock-results">
             <div class="rank-item"><strong>1.</strong> Fix login bug</div>
-            <div class="rank-item"><strong>2.</strong> Update API documentation</div>
+            <div class="rank-item">
+              <strong>2.</strong> Update API documentation
+            </div>
             <div class="rank-item"><strong>3.</strong> Add dark mode</div>
-            <div class="rank-item"><strong>4.</strong> Refactor user service</div>
+            <div class="rank-item">
+              <strong>4.</strong> Refactor user service
+            </div>
           </div>
         </div>
       </div>
 
       <div class="step">
         <h3>5. Update Your Rankings</h3>
-        <p>Re-import your ranked CSV and use it as the seeded ranking for your next tournament. This lets you continuously refine your priorities as new tasks are added, powering your next development sprint with an updated backlog order.</p>
+        <p>
+          Re-import your ranked CSV and use it as the seeded ranking for your
+          next tournament. This lets you continuously refine your priorities as
+          new tasks are added, powering your next development sprint with an
+          updated backlog order.
+        </p>
         <div class="visual-guide">
           <div class="cycle-diagram">
             <div class="cycle-step">📥 Export ranked CSV</div>
@@ -123,17 +151,31 @@
       <h2>Getting Started</h2>
       <p>Ready to prioritize your backlog? Here's what you need:</p>
       <ul>
-        <li>A CSV file with your tasks (exported from your project management tool)</li>
+        <li>
+          A CSV file with your tasks (exported from your project management
+          tool)
+        </li>
         <li>At least 2 tasks to compare (though it works better with more!)</li>
         <li>A few minutes to make head-to-head decisions</li>
       </ul>
-      <button @click="$emit('go-home')" class="cta-button">Start Ranking Your Tasks</button>
+      <button class="cta-button" @click="$emit('go-home')">
+        Start Ranking Your Tasks
+      </button>
     </div>
 
     <div class="footer-info">
-      <p>TaskSeeder is an open-source project. Found a bug or have a feature request? 
-        <a href="https://github.com/awwaiid/task-seeder/discussions" target="_blank">Join the discussion</a> 
-        or <a href="https://github.com/awwaiid/task-seeder" target="_blank">view the source code</a>.
+      <p>
+        TaskSeeder is an open-source project. Found a bug or have a feature
+        request?
+        <a
+          href="https://github.com/awwaiid/task-seeder/discussions"
+          target="_blank"
+          >Join the discussion</a
+        >
+        or
+        <a href="https://github.com/awwaiid/task-seeder" target="_blank"
+          >view the source code</a
+        >.
       </p>
     </div>
   </div>
@@ -141,8 +183,8 @@
 
 <script setup lang="ts">
 defineEmits<{
-  'go-home': []
-}>()
+  'go-home': [];
+}>();
 </script>
 
 <style scoped>
@@ -372,20 +414,20 @@ defineEmits<{
   .mock-matchup {
     flex-direction: column;
   }
-  
+
   .tournament-options {
     grid-template-columns: 1fr;
   }
-  
+
   .features-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .cycle-diagram {
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
   .cycle-arrow {
     transform: rotate(90deg);
   }

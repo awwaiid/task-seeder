@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -7,13 +7,13 @@ export default defineConfig({
   base: '/',
   resolve: {
     alias: {
-      '@': '/src'
-    }
+      '@': '/src',
+    },
   },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: './tests/setup.js',
-    exclude: ['**/node_modules/**', '**/tests/e2e/**']
-  }
-})
+    exclude: ['**/node_modules/**', '**/tests/e2e/**'],
+  },
+});
