@@ -175,22 +175,16 @@
                          @click="tournamentType = 'single'"
                          style="cursor: pointer;">
                         <strong>Single Elimination</strong><br>
-                        <small>{{ calculateTotalMatchesForType('single') }} matches • Fast</small>
+                        <small>{{ calculateTotalMatchesForType('single') }} matches • Fast</small><br>
+                        <small style="color: #666; margin-top: 4px; display: block;">Each task eliminated after one loss</small>
                     </div>
                     <div class="option" 
                          :class="{ 'selected': tournamentType === 'double' }"
                          @click="tournamentType = 'double'"
                          style="cursor: pointer;">
                         <strong>Double Elimination</strong><br>
-                        <small>{{ calculateTotalMatchesForType('double') }} matches • More accurate</small>
-                    </div>
-                </div>
-                <div style="margin-top: 10px; font-size: 14px; color: #666;">
-                    <div v-if="tournamentType === 'single'">
-                        <strong>Single Elimination:</strong> Each task gets eliminated after one loss. Fast but less forgiving.
-                    </div>
-                    <div v-if="tournamentType === 'double'">
-                        <strong>Double Elimination:</strong> Tasks get a second chance in the losers bracket. More matches but fairer rankings.
+                        <small>{{ calculateTotalMatchesForType('double') }} matches • More accurate</small><br>
+                        <small style="color: #666; margin-top: 4px; display: block;">Tasks get a second chance</small>
                     </div>
                 </div>
             </div>
