@@ -157,15 +157,21 @@
             <!-- Tournament Type -->
             <div style="margin: 20px 0; padding: 20px; background-color: #e8f5e8; border-radius: 6px;">
                 <h4>Choose Tournament Type:</h4>
-                <div style="display: flex; gap: 20px; margin-top: 10px;">
-                    <label style="display: flex; align-items: center; gap: 8px;">
-                        <input type="radio" v-model="tournamentType" value="single">
-                        <span>Single Elimination (faster, {{ calculateTotalMatchesForType('single') }} matches)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px;">
-                        <input type="radio" v-model="tournamentType" value="double">
-                        <span>Double Elimination (more accurate, {{ calculateTotalMatchesForType('double') }} matches)</span>
-                    </label>
+                <div class="tournament-options" style="margin-top: 10px;">
+                    <div class="option" 
+                         :class="{ 'selected': tournamentType === 'single' }"
+                         @click="tournamentType = 'single'"
+                         style="cursor: pointer;">
+                        <strong>Single Elimination</strong><br>
+                        <small>{{ calculateTotalMatchesForType('single') }} matches • Fast</small>
+                    </div>
+                    <div class="option" 
+                         :class="{ 'selected': tournamentType === 'double' }"
+                         @click="tournamentType = 'double'"
+                         style="cursor: pointer;">
+                        <strong>Double Elimination</strong><br>
+                        <small>{{ calculateTotalMatchesForType('double') }} matches • More accurate</small>
+                    </div>
                 </div>
                 <div style="margin-top: 10px; font-size: 14px; color: #666;">
                     <div v-if="tournamentType === 'single'">
@@ -180,15 +186,21 @@
             <!-- Seeding Options -->
             <div style="margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 6px;">
                 <h4>Choose Seeding Method:</h4>
-                <div style="display: flex; gap: 20px; margin-top: 10px;">
-                    <label style="display: flex; align-items: center; gap: 8px;">
-                        <input type="radio" v-model="seedingMethod" value="order">
-                        <span>Tournament seeding (1st vs last, 2nd vs 2nd-to-last, etc.)</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 8px;">
-                        <input type="radio" v-model="seedingMethod" value="random">
-                        <span>Random seeding</span>
-                    </label>
+                <div class="tournament-options" style="margin-top: 10px;">
+                    <div class="option" 
+                         :class="{ 'selected': seedingMethod === 'order' }"
+                         @click="seedingMethod = 'order'"
+                         style="cursor: pointer;">
+                        <strong>Tournament Seeding</strong><br>
+                        <small>1st vs last, 2nd vs 2nd-to-last, etc.</small>
+                    </div>
+                    <div class="option" 
+                         :class="{ 'selected': seedingMethod === 'random' }"
+                         @click="seedingMethod = 'random'"
+                         style="cursor: pointer;">
+                        <strong>Random Seeding</strong><br>
+                        <small>Randomly paired matchups</small>
+                    </div>
                 </div>
             </div>
             
@@ -1324,5 +1336,37 @@ defineExpose({
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+.tournament-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.option {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    border: 2px solid #ddd;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.option:hover {
+    border-color: var(--secondary);
+    background-color: #f8f9fa;
+}
+
+.option.selected {
+    border-color: var(--secondary);
+    background-color: #e3f2fd;
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.1);
+}
+
+@media (max-width: 768px) {
+    .tournament-options {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
