@@ -79,7 +79,7 @@
         <div class="upload-demo-container">
             <!-- File Upload -->
             <div class="upload-section">
-                <div class="file-upload-area" @click="($refs.fileInput as any)?.click()" 
+                <div class="file-upload-area" @click="fileInput?.click()" 
                     :class="{ dragover: isDragOver }"
                     @dragover.prevent="isDragOver = true"
                     @dragleave.prevent="isDragOver = false"
@@ -674,8 +674,8 @@ function processFile(file: File) {
             // Generate default tournament name
             tournamentName.value = `Task Ranking ${new Date().toLocaleDateString()}`;
         },
-        error: function(error) {
-            alert('Error parsing CSV file: ' + (error as Error).message);
+        error: function(error: any) {
+            alert('Error parsing CSV file: ' + error.message);
         }
     });
 }
