@@ -145,7 +145,7 @@ defineEmits(['go-home'])
 
 <style scoped>
 .about-page {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   line-height: 1.7;
 }
