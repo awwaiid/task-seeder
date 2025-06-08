@@ -211,7 +211,9 @@ export class BracketStorage {
     
     static serializeParticipantArray(participants: Participant[], participantMap: Map<Participant, number>): (Participant | number)[] {
         if (!participants || !Array.isArray(participants)) return []
-        return participants.map(participant => this.getParticipantIndex(participant, participantMap))
+        return participants
+            .map(participant => this.getParticipantIndex(participant, participantMap))
+            .filter((item): item is Participant | number => item !== null)
     }
     
     static serializeMatch(match: Match, participantMap: Map<Participant, number>): any {
@@ -267,21 +269,35 @@ export class BracketStorage {
     
     static serializeLossCount(lossCount: Map<Participant | number, number> | [Participant | number, number][], participantMap: Map<Participant, number>): [Participant | number, number][] {
         const entries = Array.isArray(lossCount) ? lossCount : Array.from(lossCount.entries())
-        return entries.map(([participant, count]) => [
-            this.getParticipantIndex(participant, participantMap),
-            count
-        ])
+        return entries
+            .map(([participant, count]) => [
+                this.getParticipantIndex(participant, participantMap),
+                count
+            ] as [Participant | number | null, number])
+            .filter((entry): entry is [Participant | number, number] => entry[0] !== null)
     }
     
     static serializeMatchHistory(matchHistory: Map<Participant, MatchHistoryEntry[]>, participantMap: Map<Participant, number>): [Participant | number, MatchHistoryEntry[]][] {
         if (!matchHistory || !(matchHistory instanceof Map)) return []
-        return Array.from(matchHistory.entries()).map(([participant, history]) => [
-            this.getParticipantIndex(participant, participantMap),
-            history.map(match => ({
-                ...match,
-                opponent: this.getParticipantIndex(match.opponent, participantMap)
-            }))
-        ])
+        return Array.from(matchHistory.entries())
+            .map(([participant, history]) => {
+                const participantIndex = this.getParticipantIndex(participant, participantMap)
+                if (participantIndex === null) return null
+                
+                const serializedHistory = history
+                    .map(match => {
+                        const opponentIndex = this.getParticipantIndex(match.opponent, participantMap)
+                        if (opponentIndex === null) return null
+                        return {
+                            ...match,
+                            opponent: opponentIndex
+                        }
+                    })
+                    .filter((match): match is MatchHistoryEntry => match !== null)
+                
+                return [participantIndex, serializedHistory] as [Participant | number, MatchHistoryEntry[]]
+            })
+            .filter((entry): entry is [Participant | number, MatchHistoryEntry[]] => entry !== null)
     }
     
     static deserializeBracket(bracketData: BracketData): any {

@@ -45,12 +45,12 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-    currentRound: Number,
-    currentMatchup: Number,
-    completedMatches: Number,
-    totalMatches: Number,
-    tournamentName: String,
-    taskCount: Number,
+    currentRound: { type: Number, default: 0 },
+    currentMatchup: { type: Number, default: 0 },
+    completedMatches: { type: Number, default: 0 },
+    totalMatches: { type: Number, default: 0 },
+    tournamentName: { type: String, default: '' },
+    taskCount: { type: Number, default: 0 },
     tournamentType: { type: String, default: 'single' },
     currentBracketType: { type: String, default: 'main' },
     currentRoundMatch: {
@@ -95,7 +95,7 @@ const currentRoundMatches = computed(() => {
     
     let participants = props.taskCount;
     // Calculate how many participants are left at the current round
-    for (let i = 0; i < props.currentRound; i++) {
+    for (let i = 0; i < (props.currentRound || 0); i++) {
         participants = Math.ceil(participants / 2);
     }
     
@@ -103,26 +103,26 @@ const currentRoundMatches = computed(() => {
 });
 
 const globalMatchNumber = computed(() => {
-    return props.completedMatches + 1;
+    return (props.completedMatches || 0) + 1;
 });
 
 const progressPercentage = computed(() => {
-    if (props.totalMatches === 0) return 0;
-    return (props.completedMatches / props.totalMatches) * 100;
+    if ((props.totalMatches || 0) === 0) return 0;
+    return ((props.completedMatches || 0) / (props.totalMatches || 1)) * 100;
 });
 
 const globalProgressPercentage = computed(() => {
-    if (props.totalMatches === 0) return 0;
-    return Math.round((props.completedMatches / props.totalMatches) * 100);
+    if ((props.totalMatches || 0) === 0) return 0;
+    return Math.round(((props.completedMatches || 0) / (props.totalMatches || 1)) * 100);
 });
 
 const bracketDisplayName = computed(() => {
     if (props.tournamentType !== 'double') return '';
     
     // Use the same round number logic as displayRound
-    const roundNumber = (props.totalRounds > 0) 
-        ? props.currentRound  // TournamentRunner: 1-indexed
-        : props.currentRound + 1; // Tests: convert from 0-indexed
+    const roundNumber = ((props.totalRounds || 0) > 0) 
+        ? (props.currentRound || 0)  // TournamentRunner: 1-indexed
+        : (props.currentRound || 0) + 1; // Tests: convert from 0-indexed
     
     if (props.currentBracketType === 'winners') {
         return `Winners Bracket - Round ${roundNumber}`;
@@ -140,11 +140,11 @@ const bracketDisplayName = computed(() => {
 
 const displayRound = computed(() => {
     // If using TournamentRunner (indicated by totalRounds prop), use 1-indexed values directly
-    if (props.totalRounds > 0) {
-        return props.currentRound;
+    if ((props.totalRounds || 0) > 0) {
+        return props.currentRound || 0;
     }
     // Otherwise, convert from 0-indexed (for tests)
-    return props.currentRound + 1;
+    return (props.currentRound || 0) + 1;
 });
 
 const displayMatch = computed(() => {

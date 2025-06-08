@@ -7,7 +7,7 @@
             <p style="color: #666; margin-bottom: 15px;">Pick up where you left off with your saved bracket tournaments:</p>
             
             <div style="display: grid; gap: 12px;">
-                <div v-for="bracket in savedBrackets" :key="bracket.id" 
+                <div v-for="bracket in savedBrackets" :key="bracket.id || bracket.name || ''" 
                      class="bracket-card"
                      style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: white; border-radius: 6px; border: 1px solid #ddd;">
                     <div class="bracket-info" style="flex: 1;">
@@ -20,16 +20,16 @@
                         </div>
                     </div>
                     <div class="bracket-actions" style="display: flex; gap: 8px;">
-                        <button @click="loadBracket(bracket.id)" 
+                        <button @click="loadBracket(bracket.id || '')" 
                                 style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
                             {{ bracket.status === 'results' ? 'View Results' : 'Continue' }}
                         </button>
-                        <button @click="shareBracket(bracket.id)" 
+                        <button @click="shareBracket(bracket.id || '')" 
                                 style="padding: 6px 8px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
                                 title="Share bracket via URL">
                             🔗
                         </button>
-                        <button @click="deleteBracket(bracket.id)" 
+                        <button @click="deleteBracket(bracket.id || '')" 
                                 style="padding: 6px 8px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
                                 title="Delete bracket">
                             🗑️
@@ -55,7 +55,7 @@
         <div v-if="showStorageWarning" style="margin-bottom: 20px; padding: 12px 16px; background-color: #fff3cd; border-radius: 6px; border-left: 4px solid #ffc107; display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="color: #856404; font-size: 16px;">⚠️</span>
-                <span style="color: #856404; font-weight: 500;">Browser storage is {{ storageUsage.usagePercent }}% full ({{ storageUsage.totalMB }}MB). Old brackets may be automatically cleaned up.</span>
+                <span style="color: #856404; font-weight: 500;">Browser storage is {{ storageUsage?.usagePercent }}% full ({{ storageUsage?.totalMB }}MB). Old brackets may be automatically cleaned up.</span>
             </div>
             <button @click="cleanupStorage" style="padding: 4px 8px; background: #ffc107; color: #212529; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">
                 Clean Up
@@ -253,8 +253,8 @@
         
         <task-matchup 
             data-testid="task-matchup"
-            :task1="currentPair[0]"
-            :task2="currentPair[1]"
+            :task1="currentPair[0] || null"
+            :task2="currentPair[1] || null"
             :task-name-column="taskNameColumn"
             :selected-fields="selectedSecondaryFields"
             @choose-winner="chooseWinner"
@@ -309,7 +309,7 @@
                                         </button>
                                     </div>
                                     
-                                    <div v-if="matchHistory.has(task) && matchHistory.get(task).length > 0">
+                                    <div v-if="matchHistory.has(task) && matchHistory.get(task)!.length > 0">
                                         <div v-for="(match, matchIndex) in matchHistory.get(task)" :key="matchIndex" 
                                              style="background: white; margin-bottom: 6px; padding: 10px; border-radius: 4px; border-left: 3px solid #3498db; font-size: 14px;">
                                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -508,7 +508,7 @@ function shuffleArray<T>(array: T[]): T[] {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+        [newArray[i], newArray[j]] = [newArray[j]!, newArray[i]!];
     }
     return newArray;
 }
@@ -530,7 +530,7 @@ function autoDetectTaskNameColumn(headers: string[]): string | null {
         if (found) return found;
     }
     
-    return headers[0];
+    return headers[0] || null;
 }
 
 function autoSelectSecondaryFields(headers: string[], taskNameColumn: string, maxFields = 4): string[] {
@@ -626,15 +626,7 @@ const currentBracketType = computed(() => {
     return currentMatch.value.bracket;
 });
 
-// Compatibility computed properties for existing tests
-const currentMatchup = computed(() => {
-    if (!tournament.value) return 0;
-    return tournament.value.matches.length; // Use completed matches count as matchup number
-});
-
-const totalMatches = computed(() => {
-    return totalUserVisibleMatches.value;
-});
+// Removed unused compatibility computed properties
 
 const finalRankings = computed(() => {
     if (currentPhase.value !== 'results' || !tournament.value) return [];
@@ -644,7 +636,7 @@ const finalRankings = computed(() => {
 });
 
 // Methods
-function handleFileDrop(event) {
+function handleFileDrop(event: DragEvent) {
     isDragOver.value = false;
     const file = event.dataTransfer?.files?.[0];
     if (file) {
@@ -652,14 +644,15 @@ function handleFileDrop(event) {
     }
 }
 
-function handleFileUpload(event) {
-    const file = event.target.files[0];
+function handleFileUpload(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
     if (file) {
         processFile(file);
     }
 }
 
-function processFile(file) {
+function processFile(file: File) {
     if (!file.name.toLowerCase().endsWith('.csv')) {
         alert('Please upload a CSV file.');
         return;
@@ -668,21 +661,21 @@ function processFile(file) {
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
-        complete: function(results) {
-            csvData.value = results.data;
+        complete: function(results: any) {
+            csvData.value = results.data as Task[];
             csvHeaders.value = results.meta.fields || Object.keys(results.data[0] || {});
             
             // Auto-select task name column using utility function
-            taskNameColumn.value = autoDetectTaskNameColumn(csvHeaders.value);
+            taskNameColumn.value = autoDetectTaskNameColumn(csvHeaders.value) || '';
             
             // Auto-select secondary fields using utility function
-            selectedSecondaryFields.value = autoSelectSecondaryFields(csvHeaders.value, taskNameColumn.value);
+            selectedSecondaryFields.value = autoSelectSecondaryFields(csvHeaders.value, taskNameColumn.value || '');
             
             // Generate default tournament name
             tournamentName.value = `Task Ranking ${new Date().toLocaleDateString()}`;
         },
         error: function(error) {
-            alert('Error parsing CSV file: ' + error.message);
+            alert('Error parsing CSV file: ' + (error as Error).message);
         }
     });
 }
@@ -690,13 +683,13 @@ function processFile(file) {
 function loadDemoData() {
     // Use the demo data directly
     csvData.value = [...DEMO_CSV_DATA];
-    csvHeaders.value = Object.keys(DEMO_CSV_DATA[0]);
+    csvHeaders.value = Object.keys(DEMO_CSV_DATA[0] || {});
     
     // Auto-select task name column using utility function
-    taskNameColumn.value = autoDetectTaskNameColumn(csvHeaders.value);
+    taskNameColumn.value = autoDetectTaskNameColumn(csvHeaders.value) || '';
     
     // Auto-select secondary fields using utility function
-    selectedSecondaryFields.value = autoSelectSecondaryFields(csvHeaders.value, taskNameColumn.value);
+    selectedSecondaryFields.value = autoSelectSecondaryFields(csvHeaders.value, taskNameColumn.value || '');
     
     // Generate default tournament name
     tournamentName.value = `Demo Tournament ${new Date().toLocaleDateString()}`;
@@ -713,7 +706,7 @@ function toggleSelectAllFields() {
 }
 
 // Calculate total matches for different tournament types
-const calculateTotalMatchesForType = (type) => {
+const calculateTotalMatchesForType = (type: string) => {
     const participantCount = csvData.value.length;
     if (type === 'double') {
         return (participantCount * 2) - 1; // Double elimination
@@ -752,7 +745,7 @@ function startBracketology() {
         console.log('Tournament created successfully:', tournament.value);
     } catch (error) {
         console.error('Error creating tournament:', error);
-        alert('Error creating tournament: ' + error.message);
+        alert('Error creating tournament: ' + (error as Error).message);
         return;
     }
     
@@ -777,53 +770,60 @@ function startBracketology() {
     try {
         saveBracket();
     } catch (error) {
-        if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
+        const err = error as Error;
+        if (err.name === 'QuotaExceededError' || err.message.includes('quota') || err.message.includes('storage')) {
             console.warn('Tournament too large to auto-save. Continuing without auto-save.', error);
             // Show a brief notice but don't block the tournament (unless in test environment)
-            if (typeof window !== 'undefined' && window.alert && !(window as any).vitest) {
+            if (typeof window !== 'undefined' && window.alert !== undefined) {
                 setTimeout(() => {
                     alert('Note: This tournament is too large to auto-save. Your progress will be lost if you refresh the page, but you can still complete the tournament.');
                 }, 1000);
             }
         } else {
-            console.warn('Error auto-saving bracket (continuing):', error.message);
+            console.warn('Error auto-saving bracket (continuing):', err.message);
         }
     }
 }
 
 
-function chooseWinner(winnerIndex) {
+function chooseWinner(winnerIndex: number) {
     if (!currentMatch.value || !tournament.value) return;
     
     const winner = winnerIndex === 0 ? currentMatch.value.player1 : currentMatch.value.player2;
     const loser = winnerIndex === 0 ? currentMatch.value.player2 : currentMatch.value.player1;
     
-    // Record match history
-    const matchRecord = {
-        round: currentMatch.value.round,
-        opponent: loser,
-        result: 'W',
-        matchNumber: tournament.value.getCurrentMatchNumber(),
-        bracket: currentMatch.value.bracket || 'main'
-    };
-    
-    const loserRecord = {
-        round: currentMatch.value.round,
-        opponent: winner,
-        result: 'L',
-        matchNumber: tournament.value.getCurrentMatchNumber(),
-        bracket: currentMatch.value.bracket || 'main'
-    };
-    
-    if (matchHistory.value.has(winner)) {
-        matchHistory.value.get(winner).push(matchRecord);
+    // Report result to tournament (always call this to ensure tournament progresses)
+    if (winner) {
+        // Only record match history if both players are valid (non-null)
+        if (winner && loser) {
+            // Record match history
+            const matchRecord = {
+                round: currentMatch.value.round,
+                opponent: loser,
+                result: 'W' as const,
+                matchNumber: tournament.value.getCurrentMatchNumber(),
+                bracket: currentMatch.value.bracket || 'main'
+            };
+            
+            const loserRecord = {
+                round: currentMatch.value.round,
+                opponent: winner,
+                result: 'L' as const,
+                matchNumber: tournament.value.getCurrentMatchNumber(),
+                bracket: currentMatch.value.bracket || 'main'
+            };
+            
+            if (matchHistory.value.has(winner)) {
+                matchHistory.value.get(winner)!.push(matchRecord);
+            }
+            if (matchHistory.value.has(loser)) {
+                matchHistory.value.get(loser)!.push(loserRecord);
+            }
+        }
+        
+        // Always report result to ensure tournament progression
+        tournament.value.reportResult(currentMatch.value, winner);
     }
-    if (matchHistory.value.has(loser)) {
-        matchHistory.value.get(loser).push(loserRecord);
-    }
-    
-    // Report result to tournament
-    tournament.value.reportResult(currentMatch.value, winner);
     
     // Get next match
     currentMatch.value = tournament.value.getNextMatch();
@@ -835,7 +835,7 @@ function chooseWinner(winnerIndex) {
         try {
             saveBracket();
         } catch (error) {
-            console.warn('Error saving bracket on completion (continuing):', error.message);
+            console.warn('Error saving bracket on completion (continuing):', (error as Error).message);
         }
     } else {
         // Use debounced save during rapid match play for performance
@@ -844,12 +844,12 @@ function chooseWinner(winnerIndex) {
 }
 
 
-function getTaskTitle(task) {
+function getTaskTitle(task: Participant | null): string {
     if (!task) return 'Untitled Task';
     return task[taskNameColumn.value] || 'Untitled Task';
 }
 
-function toggleTaskHistory(task) {
+function toggleTaskHistory(task: Participant) {
     if (expandedTaskHistory.value === task) {
         expandedTaskHistory.value = null; // Collapse if already expanded
     } else {
@@ -900,7 +900,7 @@ function exportResults() {
         document.body.removeChild(link);
     } catch (error) {
         console.error('Error exporting CSV:', error);
-        alert('Error exporting CSV: ' + error.message);
+        alert('Error exporting CSV: ' + (error as Error).message);
         
         // Fallback to clipboard
         try {
@@ -926,10 +926,11 @@ function restartBracketology() {
         try {
             saveBracket();
         } catch (error) {
-            if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
+            const err = error as Error;
+            if (err.name === 'QuotaExceededError' || err.message.includes('quota') || err.message.includes('storage')) {
                 console.warn('Tournament too large to save on restart. Progress will be lost.', error);
             } else {
-                console.warn('Error saving bracket on restart (continuing anyway):', error.message);
+                console.warn('Error saving bracket on restart (continuing anyway):', err.message);
             }
         }
     }
@@ -956,7 +957,7 @@ function loadSavedBrackets() {
     savedBrackets.value = BracketStorage.getBracketsList();
 }
 
-function loadBracket(bracketId) {
+function loadBracket(bracketId: string) {
     try {
         const bracketData = BracketStorage.loadBracket(bracketId);
         if (!bracketData) {
@@ -1012,7 +1013,7 @@ function loadBracket(bracketId) {
         }
     } catch (error) {
         console.error('Error loading bracket:', error);
-        alert('Error loading bracket: ' + error.message);
+        alert('Error loading bracket: ' + (error as Error).message);
     }
 }
 
@@ -1039,7 +1040,7 @@ function saveBracket() {
                 BracketStorage.updateBracket(currentBracketId.value, bracketData);
             } catch (error) {
                 // If bracket doesn't exist, save as new
-                console.warn('Bracket not found during update, saving as new:', error.message);
+                console.warn('Bracket not found during update, saving as new:', (error as Error).message);
                 currentBracketId.value = BracketStorage.saveBracket(bracketData);
             }
         } else {
@@ -1067,10 +1068,11 @@ function debouncedSave() {
         try {
             saveBracket();
         } catch (error) {
-            if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
+            const err = error as Error;
+            if (err.name === 'QuotaExceededError' || err.message.includes('quota') || err.message.includes('storage')) {
                 console.warn('Tournament too large to save during play. Skipping auto-save.', error);
                 // Stop trying to auto-save for this session
-                clearTimeout(saveTimeout);
+                if (saveTimeout) clearTimeout(saveTimeout);
             } else {
                 console.error('Error saving bracket during play:', error);
             }
@@ -1079,7 +1081,7 @@ function debouncedSave() {
     }, SAVE_DEBOUNCE_MS);
 }
 
-function deleteBracket(bracketId) {
+function deleteBracket(bracketId: string) {
     if (confirm('Are you sure you want to delete this bracket? This action cannot be undone.')) {
         BracketStorage.deleteBracket(bracketId);
         loadSavedBrackets();
@@ -1092,7 +1094,7 @@ function deleteBracket(bracketId) {
     }
 }
 
-function formatDate(dateString) {
+function formatDate(dateString: string): string {
     try {
         const date = new Date(dateString);
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1102,7 +1104,7 @@ function formatDate(dateString) {
 }
 
 // URL sharing functions
-function shareBracket(bracketId) {
+function shareBracket(bracketId: string) {
     try {
         const bracketData = BracketStorage.loadBracket(bracketId);
         if (!bracketData) {
@@ -1124,7 +1126,7 @@ function shareBracket(bracketId) {
         }
     } catch (error) {
         console.error('Error sharing bracket:', error);
-        alert('Error creating shareable URL: ' + error.message);
+        alert('Error creating shareable URL: ' + (error as Error).message);
     }
 }
 
@@ -1159,11 +1161,11 @@ function shareCurrentBracket() {
         }
     } catch (error) {
         console.error('Error sharing bracket:', error);
-        alert('Error creating shareable URL: ' + error.message);
+        alert('Error creating shareable URL: ' + (error as Error).message);
     }
 }
 
-function showURLDialog(url) {
+function showURLDialog(url: string) {
     const message = `Copy this URL to share the bracket:\n\n${url}`;
     if (window.prompt) {
         window.prompt(message, url);
@@ -1284,7 +1286,7 @@ function loadBracketFromURL() {
         return true;
     } catch (error) {
         console.error('Error loading bracket from URL:', error);
-        alert('Invalid or corrupted bracket URL: ' + error.message);
+        alert('Invalid or corrupted bracket URL: ' + (error as Error).message);
         return false;
     }
 }
@@ -1315,7 +1317,7 @@ function saveCurrentBracketLocally() {
         alert('Bracket saved locally! You can now access it from the saved brackets list.');
     } catch (error) {
         console.error('Error saving bracket locally:', error);
-        alert('Error saving bracket: ' + error.message);
+        alert('Error saving bracket: ' + (error as Error).message);
     }
 }
 

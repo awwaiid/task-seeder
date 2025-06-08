@@ -17,12 +17,17 @@ vi.mock('../../src/utils/TournamentRunner.js', () => ({
         let isCompleted = false;
         let matches = [];
         return {
-            getNextMatch: vi.fn().mockReturnValue({
-                player1: { 'Task Name': 'Task 1' },
-                player2: { 'Task Name': 'Task 2' },
-                round: 1,
-                matchInRound: 1,
-                bracket: 'main'
+            getNextMatch: vi.fn(() => {
+                if (isCompleted) {
+                    return null;
+                }
+                return {
+                    player1: { 'Task Name': 'Task 1' },
+                    player2: { 'Task Name': 'Task 2' },
+                    round: 1,
+                    matchInRound: 1,
+                    bracket: 'main'
+                };
             }),
             getCurrentMatchNumber: vi.fn(() => currentMatchNum),
             getTotalMatches: vi.fn().mockReturnValue(3),
@@ -308,7 +313,7 @@ describe('TournamentManager Integration Tests', () => {
             await wrapper.vm.$nextTick()
 
             // Complete all matches
-            const totalMatches = wrapper.vm.totalMatches
+            const totalMatches = wrapper.vm.tournament.getTotalMatches()
             for (let i = 0; i < totalMatches; i++) {
                 wrapper.vm.chooseWinner(0)
                 await wrapper.vm.$nextTick()

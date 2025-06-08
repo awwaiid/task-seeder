@@ -25,11 +25,23 @@ export class Tournament {
     _currentRound: number;
     currentMatch: number;
     progressCallback: ((progress: any) => void) | null;
-    taskNameColumn?: string;
+    taskNameColumn: string | undefined;
 
     // Computed property for compatibility
     get matches(): any[] {
         return this.completedMatches;
+    }
+
+    get pendingMatches(): any[] {
+        return this.bracket.filter(match => 
+            !this._isMatchCompleted(match) && 
+            match.player1 && 
+            match.player2 &&
+            !this._isBYEParticipant(match.player1) && 
+            !this._isBYEParticipant(match.player2) &&
+            !this._isUntitledParticipant(match.player1, this.taskNameColumn) && 
+            !this._isUntitledParticipant(match.player2, this.taskNameColumn)
+        );
     }
 
     constructor(type: TournamentType, entrants: Participant[], options: TournamentOptions = {}) {
@@ -50,6 +62,16 @@ export class Tournament {
         this.bracketProgressCache = null // Cache bracket progress counts for performance
         this.nextMatchIndex = 0 // Track position in bracket array for O(1) lookup
         this.matchPriorityQueue = null // Pre-computed smart match order for double elimination
+        
+        // Handle special case: single entrant tournaments need no matches
+        if (entrants.length === 1) {
+            this.bracket = []
+            this.lossCount = new Map()
+            this.matchIndex = new Map()
+            this._currentRound = 1
+            this.currentMatch = 1
+            return
+        }
         
         // Generate the full tournament bracket using tournament-pairings
         if (this.type === 'double') {
@@ -271,7 +293,7 @@ export class Tournament {
 
     getWinner(): Participant | null {
         if (this.isComplete() && this.remainingParticipants.length === 1) {
-            return this.remainingParticipants[0];
+            return this.remainingParticipants[0] || null;
         }
         return null;
     }
@@ -392,7 +414,7 @@ export class Tournament {
 
     private _determineBracketType(match: any): string {
         // Simple bracket type determination
-        return match.bracket || 'main'
+        return match.bracket || this.type
     }
 
     private _advanceWinnerInBracket(match: ActiveMatch, winner: Participant, loser: Participant | null): void {

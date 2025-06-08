@@ -31,7 +31,7 @@ export interface ActiveMatch {
 }
 
 export interface MatchHistoryEntry {
-    opponent: Participant | null;
+    opponent: Participant;
     round: number;
     result: 'W' | 'L' | 'BYE';
     matchNumber?: number;
