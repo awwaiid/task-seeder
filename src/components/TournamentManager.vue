@@ -146,6 +146,18 @@
             <!-- Secondary Fields Selection -->
             <div style="margin: 20px 0;">
                 <h4>Select Additional Fields to Display:</h4>
+                
+                <!-- Select All Button -->
+                <div style="margin: 10px 0;">
+                    <button 
+                        @click="toggleSelectAllFields"
+                        type="button"
+                        style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;"
+                    >
+                        {{ allFieldsSelected ? 'Deselect All' : 'Select All' }}
+                    </button>
+                </div>
+                
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px;">
                     <label v-for="header in availableSecondaryFields" :key="header" style="display: flex; align-items: center; gap: 8px;">
                         <input type="checkbox" v-model="selectedSecondaryFields" :value="header">
@@ -570,6 +582,11 @@ const availableSecondaryFields = computed(() => {
     return csvHeaders.value.filter(header => header !== taskNameColumn.value);
 });
 
+const allFieldsSelected = computed(() => {
+    return availableSecondaryFields.value.length > 0 && 
+           availableSecondaryFields.value.every(field => selectedSecondaryFields.value.includes(field));
+});
+
 const showStorageWarning = computed(() => {
     return storageUsage.value && storageUsage.value.usagePercent > 80;
 });
@@ -688,6 +705,16 @@ function loadDemoData() {
     
     // Generate default tournament name
     tournamentName.value = `Demo Tournament ${new Date().toLocaleDateString()}`;
+}
+
+function toggleSelectAllFields() {
+    if (allFieldsSelected.value) {
+        // If all fields are selected, deselect all
+        selectedSecondaryFields.value = [];
+    } else {
+        // If not all fields are selected, select all
+        selectedSecondaryFields.value = [...availableSecondaryFields.value];
+    }
 }
 
 // Calculate total matches for different tournament types
