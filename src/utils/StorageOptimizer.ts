@@ -2,7 +2,7 @@
  * Storage Optimizer - Simple storage monitoring and basic optimization
  */
 
-interface StorageUsage {
+export interface StorageUsage {
     totalBytes: number;
     totalKB: number;
     totalMB: number;

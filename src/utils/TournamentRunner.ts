@@ -3,20 +3,24 @@
  * Now powered by tournament-pairings library
  */
 import { SingleElimination, DoubleElimination } from 'tournament-pairings';
+import type { TournamentType, TournamentOptions, ActiveMatch, Participant } from '../types/tournament';
+
+// Re-export types for backwards compatibility
+export type { TournamentType, TournamentOptions, ActiveMatch };
 
 export class Tournament {
     type: string;
-    originalEntrants: any[];
+    originalEntrants: Participant[];
     completedMatches: any[];
     completedMatchesSet: Set<string>;
-    remainingParticipants: any[];
-    eliminationOrder: any[];
+    remainingParticipants: Participant[];
+    eliminationOrder: Participant[];
     nextMatchCache: any;
     bracketProgressCache: any;
     nextMatchIndex: number;
     matchPriorityQueue: any;
     bracket: any[] = [];
-    lossCount: Map<any, number>;
+    lossCount: Map<Participant, number>;
     matchIndex: Map<string, any>;
     _currentRound: number;
     currentMatch: number;
@@ -27,7 +31,7 @@ export class Tournament {
         return this.completedMatches;
     }
 
-    constructor(type: string, entrants: any[], options: any = {}) {
+    constructor(type: TournamentType, entrants: Participant[], options: TournamentOptions = {}) {
         if (!entrants || entrants.length < 1) {
             throw new Error('Tournament requires at least 1 entrant')
         }
@@ -120,7 +124,12 @@ export class Tournament {
                     console.error('Failed to create double elimination with tournament-pairings, using single elimination fallback:', error)
                     this.type = 'single'
                     const singleElim = new (SingleElimination as any)(entrants.length)
-                    this.bracket = singleElim.bracket
+                    console.log('Fallback singleElim:', singleElim);
+                    console.log('Fallback singleElim.bracket:', singleElim.bracket, 'Type:', typeof singleElim.bracket, 'Is array:', Array.isArray(singleElim.bracket));
+                    console.log('Fallback singleElim is array:', Array.isArray(singleElim));
+                    
+                    // The tournament-pairings library returns the bracket directly, not as a .bracket property
+                    this.bracket = Array.isArray(singleElim) ? singleElim : (singleElim.bracket || []);
                     this._addParticipantsToBracket(entrants)
                     this.lossCount = new Map()
                 }
@@ -128,7 +137,12 @@ export class Tournament {
         } else {
             // Single elimination
             const singleElim = new (SingleElimination as any)(entrants.length)
-            this.bracket = singleElim.bracket
+            console.log('singleElim:', singleElim);
+            console.log('singleElim.bracket:', singleElim.bracket, 'Type:', typeof singleElim.bracket, 'Is array:', Array.isArray(singleElim.bracket));
+            console.log('singleElim is array:', Array.isArray(singleElim));
+            
+            // The tournament-pairings library returns the bracket directly, not as a .bracket property
+            this.bracket = Array.isArray(singleElim) ? singleElim : (singleElim.bracket || []);
             
             // Add participants to bracket
             this._addParticipantsToBracket(entrants)
@@ -155,15 +169,24 @@ export class Tournament {
     }
 
     // Essential methods that are called by components
-    getNextMatch(): any {
+    getNextMatch(): ActiveMatch | null {
+        // Check if tournament is already complete
+        if (this.isComplete()) {
+            return null;
+        }
+        
         // Simple implementation for now
         for (let i = this.nextMatchIndex; i < this.bracket.length; i++) {
             const match = this.bracket[i]
             
             if (this._isMatchCompleted(match)) continue
-            if (!match.player1 || !match.player2) continue
             
-            this.nextMatchIndex = i
+            // Skip matches with null, undefined, or BYE participants
+            if (!match.player1 || !match.player2) continue
+            if (this._isBYEParticipant(match.player1) || this._isBYEParticipant(match.player2)) continue
+            
+            // Move to next index for future calls
+            this.nextMatchIndex = i + 1
             
             return {
                 player1: match.player1,
@@ -196,10 +219,29 @@ export class Tournament {
     }
 
     isComplete(): boolean {
-        return this.remainingParticipants.length <= 1
+        // Tournament is complete if we have only one remaining participant
+        if (this.remainingParticipants.length <= 1) {
+            return true;
+        }
+        
+        // Also check if we have no more valid matches to play
+        // (all remaining matches involve BYE participants or are completed)
+        let hasValidMatches = false;
+        for (let i = this.nextMatchIndex; i < this.bracket.length; i++) {
+            const match = this.bracket[i];
+            
+            if (this._isMatchCompleted(match)) continue;
+            if (!match.player1 || !match.player2) continue;
+            if (this._isBYEParticipant(match.player1) || this._isBYEParticipant(match.player2)) continue;
+            
+            hasValidMatches = true;
+            break;
+        }
+        
+        return !hasValidMatches;
     }
 
-    getRankings(): any[] {
+    getRankings(): Participant[] {
         // Simple ranking based on elimination order
         const rankings = [...this.eliminationOrder].reverse()
         if (this.remainingParticipants.length > 0) {
@@ -208,7 +250,14 @@ export class Tournament {
         return rankings
     }
 
-    reportResult(match: any, winner: any): void {
+    getWinner(): Participant | null {
+        if (this.isComplete() && this.remainingParticipants.length === 1) {
+            return this.remainingParticipants[0];
+        }
+        return null;
+    }
+
+    reportResult(match: ActiveMatch, winner: Participant): void {
         const loser = match.player1 === winner ? match.player2 : match.player1
         
         // Record the completed match
@@ -218,21 +267,21 @@ export class Tournament {
             winner: winner,
             loser: loser,
             round: match.round,
-            matchInRound: match.matchInRound || match.match,
+            matchInRound: match.matchInRound,
             bracket: match.bracket
         }
         
         this.completedMatches.push(completedMatch)
-        this.completedMatchesSet.add(`${match.round}-${match.match}`)
+        this.completedMatchesSet.add(`${match.round}-${match.matchInRound}`)
         
         // Remove loser from remaining participants (for single elimination)
-        if (this.type === 'single') {
+        if (loser && this.type === 'single') {
             const loserIndex = this.remainingParticipants.indexOf(loser)
             if (loserIndex > -1) {
                 this.remainingParticipants.splice(loserIndex, 1)
                 this.eliminationOrder.push(loser)
             }
-        } else {
+        } else if (loser) {
             // Double elimination logic - simplified
             let currentLossCount = this.lossCount.get(loser) || 0
             currentLossCount++
@@ -291,15 +340,16 @@ export class Tournament {
     }
 
     // Helper methods (simplified implementations)
-    private _addParticipantsToBracket(entrants: any[]): void {
-        // Simple seeding - assign participants to first available slots
-        let entrantIndex = 0
+    private _addParticipantsToBracket(entrants: Participant[]): void {
+        // Replace numeric indices with actual entrant objects
         for (const match of this.bracket) {
-            if (match.player1 === null && entrantIndex < entrants.length) {
-                match.player1 = entrants[entrantIndex++]
+            // If player1 is a number (index), replace with actual entrant
+            if (typeof match.player1 === 'number' && match.player1 < entrants.length) {
+                match.player1 = entrants[match.player1]
             }
-            if (match.player2 === null && entrantIndex < entrants.length) {
-                match.player2 = entrants[entrantIndex++]
+            // If player2 is a number (index), replace with actual entrant
+            if (typeof match.player2 === 'number' && match.player2 < entrants.length) {
+                match.player2 = entrants[match.player2]
             }
         }
     }
@@ -313,11 +363,13 @@ export class Tournament {
         return match.bracket || 'main'
     }
 
-    private _advanceWinnerInBracket(match: any, winner: any, loser: any): void {
+    private _advanceWinnerInBracket(match: ActiveMatch, winner: Participant, loser: Participant | null): void {
+        const originalMatch = match.originalMatch;
+        
         // Find and update the next match for the winner
-        if (match.win) {
+        if (originalMatch?.win) {
             const nextMatch = this.bracket.find((m: any) => 
-                m.round === match.win.round && m.match === match.win.match
+                m.round === originalMatch.win.round && m.match === originalMatch.win.match
             )
             if (nextMatch) {
                 if (!nextMatch.player1) {
@@ -329,9 +381,9 @@ export class Tournament {
         }
 
         // For double elimination, handle loser bracket
-        if (this.type === 'double' && match.loss) {
+        if (this.type === 'double' && originalMatch?.loss && loser) {
             const loserMatch = this.bracket.find((m: any) => 
-                m.round === match.loss.round && m.match === match.loss.match
+                m.round === originalMatch.loss.round && m.match === originalMatch.loss.match
             )
             if (loserMatch && (this.lossCount.get(loser) || 0) < 2) {
                 if (!loserMatch.player1) {
@@ -349,5 +401,22 @@ export class Tournament {
 
     private _buildMatchPriorityQueueEfficient(): void {
         // Placeholder for double elimination priority queue
+    }
+
+    private _isBYEParticipant(participant: any): boolean {
+        if (!participant) return false;
+        
+        // Check if it's a string "BYE"
+        if (typeof participant === 'string' && participant === 'BYE') return true;
+        
+        // Check if it's an object with a BYE-like name in common fields
+        if (typeof participant === 'object') {
+            const nameFields = ['name', 'title', 'task', 'summary'];
+            for (const field of nameFields) {
+                if (participant[field] === 'BYE') return true;
+            }
+        }
+        
+        return false;
     }
 }

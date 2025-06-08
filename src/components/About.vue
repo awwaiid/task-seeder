@@ -139,8 +139,10 @@
   </div>
 </template>
 
-<script setup>
-defineEmits(['go-home'])
+<script setup lang="ts">
+defineEmits<{
+  'go-home': []
+}>()
 </script>
 
 <style scoped>

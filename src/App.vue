@@ -1,19 +1,25 @@
-<script setup>
+<script setup lang="ts">
 import TournamentManager from './components/TournamentManager.vue'
 import About from './components/About.vue'
 import { ref } from 'vue'
 
-const tournamentManagerRef = ref(null)
-const currentView = ref('main')
+type CurrentView = 'main' | 'about'
 
-function goHome() {
+interface TournamentManagerInstance {
+  restartBracketology: () => void
+}
+
+const tournamentManagerRef = ref<TournamentManagerInstance | null>(null)
+const currentView = ref<CurrentView>('main')
+
+function goHome(): void {
   currentView.value = 'main'
   if (tournamentManagerRef.value && tournamentManagerRef.value.restartBracketology) {
     tournamentManagerRef.value.restartBracketology()
   }
 }
 
-function showAbout() {
+function showAbout(): void {
   currentView.value = 'about'
 }
 </script>

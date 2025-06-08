@@ -2,7 +2,7 @@
  * Bracket Storage Utility - Manages saving and loading brackets from localStorage
  */
 
-import { StorageOptimizer } from './StorageOptimizer.js'
+import { StorageOptimizer } from './StorageOptimizer'
 
 const STORAGE_KEY = 'bracketology_saved_brackets'
 
@@ -57,7 +57,7 @@ interface TournamentState {
     matchHistory: Map<Participant, MatchHistoryEntry[]>;
 }
 
-interface BracketData {
+export interface BracketData {
     id?: string;
     name: string;
     status: string;
@@ -74,6 +74,8 @@ interface BracketData {
     createdAt: string;
     lastModified: string;
 }
+
+export type SavedBracket = BracketData;
 
 export class BracketStorage {
     static saveBracket(bracketData: BracketData): string {

@@ -358,10 +358,11 @@ import { ref, computed, onMounted } from 'vue';
 import Papa from 'papaparse';
 import TournamentProgress from './TournamentProgress.vue';
 import TaskMatchup from './TaskMatchup.vue';
-import { Tournament } from '../utils/TournamentRunner.js';
-import { BracketStorage } from '../utils/BracketStorage.js';
-import { URLBracketSharing } from '../utils/URLBracketSharing.js';
-import { StorageOptimizer } from '../utils/StorageOptimizer.js';
+import { Tournament, type ActiveMatch, type TournamentType } from '../utils/TournamentRunner';
+import { BracketStorage, type SavedBracket } from '../utils/BracketStorage';
+import { URLBracketSharing } from '../utils/URLBracketSharing';
+import { StorageOptimizer, type StorageUsage } from '../utils/StorageOptimizer';
+import type { Task, MatchHistoryEntry, CurrentPhase, SeedingMethod, Participant } from '../types/tournament';
 
 // Demo data
 const DEMO_CSV_DATA = [
@@ -503,7 +504,7 @@ const DEMO_CSV_DATA = [
 ];
 
 // CSV/UI utility functions
-function shuffleArray(array) {
+function shuffleArray<T>(array: T[]): T[] {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -512,7 +513,7 @@ function shuffleArray(array) {
     return newArray;
 }
 
-function autoDetectTaskNameColumn(headers) {
+function autoDetectTaskNameColumn(headers: string[]): string | null {
     if (!headers || headers.length === 0) return null;
     
     const keywords = ['name', 'title', 'task', 'summary'];
@@ -532,7 +533,7 @@ function autoDetectTaskNameColumn(headers) {
     return headers[0];
 }
 
-function autoSelectSecondaryFields(headers, taskNameColumn, maxFields = 4) {
+function autoSelectSecondaryFields(headers: string[], taskNameColumn: string, maxFields = 4): string[] {
     if (!headers || headers.length === 0) return [];
     
     const commonFields = ['Assignee', 'Status', 'Product area', 'Sprint', 'Priority', 'Due Date'];
@@ -545,30 +546,30 @@ function autoSelectSecondaryFields(headers, taskNameColumn, maxFields = 4) {
 }
 
 // State
-const currentPhase = ref('setup');
-const csvData = ref([]);
-const csvHeaders = ref([]);
-const taskNameColumn = ref('');
-const selectedSecondaryFields = ref([]);
-const tournamentType = ref('single');
-const seedingMethod = ref('order');
-const tournamentName = ref('');
-const tasks = ref([]);
-const tournament = ref(null); // New TournamentRunner instance
-const currentMatch = ref(null); // Current match from tournament
-const matchHistory = ref(new Map()); // Map of task -> array of match records
-const expandedTaskHistory = ref(null); // Currently expanded task for viewing history inline
-const isDragOver = ref(false);
-const fileInput = ref(null);
-const savedBrackets = ref([]); // List of saved brackets
-const currentBracketId = ref(null); // ID of currently loaded bracket
-const loadedFromURL = ref(false); // Whether current bracket was loaded from URL
-const showAutoSaveNotice = ref(false); // Show auto-save success notice
-const storageUsage = ref(null); // Storage usage info
-const tournamentSetupProgress = ref(''); // Progress message for large tournament setup
+const currentPhase = ref<CurrentPhase>('setup');
+const csvData = ref<Task[]>([]);
+const csvHeaders = ref<string[]>([]);
+const taskNameColumn = ref<string>('');
+const selectedSecondaryFields = ref<string[]>([]);
+const tournamentType = ref<TournamentType>('single');
+const seedingMethod = ref<SeedingMethod>('order');
+const tournamentName = ref<string>('');
+const tasks = ref<Participant[]>([]);
+const tournament = ref<Tournament | null>(null);
+const currentMatch = ref<ActiveMatch | null>(null);
+const matchHistory = ref<Map<Participant, MatchHistoryEntry[]>>(new Map());
+const expandedTaskHistory = ref<Participant | null>(null);
+const isDragOver = ref<boolean>(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+const savedBrackets = ref<SavedBracket[]>([]);
+const currentBracketId = ref<string | null>(null);
+const loadedFromURL = ref<boolean>(false);
+const showAutoSaveNotice = ref<boolean>(false);
+const storageUsage = ref<StorageUsage | null>(null);
+const tournamentSetupProgress = ref<string>('');
 
 // Performance optimization: debounced auto-save
-let saveTimeout = null;
+let saveTimeout: NodeJS.Timeout | null = null;
 const SAVE_DEBOUNCE_MS = 10000; // Save every 10 seconds max
 
 // Computed
@@ -734,7 +735,7 @@ function startBracketology() {
         return;
     }
     
-    // Prepare tasks
+    // Prepare tasks - use the full task objects
     tasks.value = [...csvData.value];
     
     // Apply seeding
@@ -743,7 +744,15 @@ function startBracketology() {
     }
     
     // Create new tournament instance (now fast for all sizes)
-    tournament.value = new Tournament(tournamentType.value, tasks.value);
+    try {
+        console.log('Creating tournament with:', { type: tournamentType.value, tasks: tasks.value });
+        tournament.value = new Tournament(tournamentType.value, tasks.value);
+        console.log('Tournament created successfully:', tournament.value);
+    } catch (error) {
+        console.error('Error creating tournament:', error);
+        alert('Error creating tournament: ' + error.message);
+        return;
+    }
     
     // Initialize match history for all tasks
     matchHistory.value = new Map();
