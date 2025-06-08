@@ -36,31 +36,37 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
-const props = defineProps({
-    task1: Object,
-    task2: Object,
-    taskNameColumn: String,
-    selectedFields: Array
-});
+interface Task {
+    [key: string]: any;
+}
 
-const emit = defineEmits(['choose-winner']);
+const props = defineProps<{
+    task1: Task | null;
+    task2: Task | null;
+    taskNameColumn: string;
+    selectedFields: string[];
+}>();
+
+const emit = defineEmits<{
+    'choose-winner': [winner: number];
+}>();
 
 // Randomly decide which task goes on which side
 const shouldFlip = ref(Math.random() < 0.5);
-const matchupContainer = ref(null);
+const matchupContainer = ref<HTMLElement | null>(null);
 
 const leftTask = computed(() => shouldFlip.value ? props.task2 : props.task1);
 const rightTask = computed(() => shouldFlip.value ? props.task1 : props.task2);
 
-function getTaskTitle(task) {
+function getTaskTitle(task: Task | null): string {
     if (!task) return 'BYE';
     return task[props.taskNameColumn] || 'Untitled Task';
 }
 
-function chooseWinner(visualSideIndex) {
+function chooseWinner(visualSideIndex: number): void {
     // visualSideIndex: 0 = left side (as displayed), 1 = right side (as displayed)
     // Map the visual choice back to the original task indices (task1 vs task2)
     let originalTaskIndex;
@@ -79,7 +85,7 @@ function chooseWinner(visualSideIndex) {
     emit('choose-winner', originalTaskIndex);
 }
 
-function handleKeydown(event) {
+function handleKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
         event.preventDefault();
         if (leftTask.value) {

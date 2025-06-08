@@ -79,7 +79,7 @@
         <div class="upload-demo-container">
             <!-- File Upload -->
             <div class="upload-section">
-                <div class="file-upload-area" @click="$refs.fileInput.click()" 
+                <div class="file-upload-area" @click="($refs.fileInput as any)?.click()" 
                     :class="{ dragover: isDragOver }"
                     @dragover.prevent="isDragOver = true"
                     @dragleave.prevent="isDragOver = false"
@@ -353,7 +353,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import Papa from 'papaparse';
 import TournamentProgress from './TournamentProgress.vue';
@@ -769,7 +769,7 @@ function startBracketology() {
         if (error.name === 'QuotaExceededError' || error.message.includes('quota') || error.message.includes('storage')) {
             console.warn('Tournament too large to auto-save. Continuing without auto-save.', error);
             // Show a brief notice but don't block the tournament (unless in test environment)
-            if (typeof window !== 'undefined' && window.alert && !window.vitest) {
+            if (typeof window !== 'undefined' && window.alert && !(window as any).vitest) {
                 setTimeout(() => {
                     alert('Note: This tournament is too large to auto-save. Your progress will be lost if you refresh the page, but you can still complete the tournament.');
                 }, 1000);
@@ -855,26 +855,27 @@ function exportResults() {
         return;
     }
     
-    try {
-        // Create CSV content with rankings
-        const csvContent = [];
-        const headers = ['Rank', 'Task', ...csvHeaders.value];
-        console.log('CSV headers:', headers);
-        csvContent.push(headers.join(','));
-        
-        finalRankings.value.forEach((task, index) => {
-            const row = [index + 1, `"${getTaskTitle(task)}"`];
-            csvHeaders.value.forEach(header => {
-                const value = task[header] || '';
-                row.push(`"${String(value).replace(/"/g, '""')}"`);
-            });
-            csvContent.push(row.join(','));
+    // Create CSV content with rankings
+    const csvContent = [];
+    const headers = ['Rank', 'Task', ...csvHeaders.value];
+    console.log('CSV headers:', headers);
+    csvContent.push(headers.join(','));
+    
+    finalRankings.value.forEach((task, index) => {
+        const row = [index + 1, `"${getTaskTitle(task)}"`];
+        csvHeaders.value.forEach(header => {
+            const value = task[header] || '';
+            row.push(`"${String(value).replace(/"/g, '""')}"`);
         });
-        
-        console.log('CSV content created, rows:', csvContent.length);
-        
-        // Create the CSV string
-        const csvString = csvContent.join('\n');
+        csvContent.push(row.join(','));
+    });
+    
+    console.log('CSV content created, rows:', csvContent.length);
+    
+    // Create the CSV string
+    const csvString = csvContent.join('\n');
+    
+    try {
         const filename = `${tournamentName.value.replace(/[^a-z0-9]/gi, '_')}_rankings.csv`;
         
         // Create and download the file
@@ -893,7 +894,6 @@ function exportResults() {
         // Fallback to clipboard
         try {
             if (navigator.clipboard) {
-                const csvString = csvContent.join('\n');
                 navigator.clipboard.writeText(csvString).then(() => {
                     alert('CSV data copied to clipboard! You can paste it into a text file and save as .csv');
                 });
@@ -1097,7 +1097,7 @@ function shareBracket(bracketId) {
             return;
         }
         
-        const shareableURL = URLBracketSharing.createShareableURL(bracketData);
+        const shareableURL = URLBracketSharing.createShareableURL(bracketData as any);
         
         // Copy to clipboard
         if (navigator.clipboard) {
@@ -1132,7 +1132,7 @@ function shareCurrentBracket() {
             matchHistory: matchHistory.value
         });
         
-        const shareableURL = URLBracketSharing.createShareableURL(bracketData);
+        const shareableURL = URLBracketSharing.createShareableURL(bracketData as any);
         
         // Copy to clipboard
         if (navigator.clipboard) {
@@ -1164,7 +1164,7 @@ function loadBracketFromURL() {
         const bracketData = URLBracketSharing.extractBracketFromCurrentURL();
         if (!bracketData) return false;
         
-        const state = BracketStorage.deserializeBracket(bracketData);
+        const state = BracketStorage.deserializeBracket(bracketData as any);
         
         // Restore all state
         currentPhase.value = state.status;
