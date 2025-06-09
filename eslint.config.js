@@ -52,6 +52,18 @@ export default [
       ],
       '@typescript-eslint/no-explicit-any': 'off',
       'no-undef': 'off', // TypeScript handles this
+      // Enforce PascalCase component naming in templates
+      'vue/component-name-in-template-casing': [
+        'error',
+        'PascalCase',
+        {
+          registeredComponentsOnly: false,
+        },
+      ],
+      // Enforce kebab-case for custom events
+      'vue/custom-event-name-casing': ['error', 'kebab-case'],
+      // Enforce kebab-case for props in templates
+      'vue/attribute-hyphenation': ['error', 'always'],
     },
   },
 
