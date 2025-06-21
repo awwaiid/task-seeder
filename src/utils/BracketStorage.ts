@@ -1,47 +1,16 @@
 /**
  * Bracket Storage Utility - Manages saving and loading brackets from localStorage
+ * Updated to use tournament-organizer format
  */
 
 import { StorageOptimizer } from './StorageOptimizer';
+import { Tournament } from './TournamentRunner';
+import type { TournamentOptions } from '../types/tournament';
 
 const STORAGE_KEY = 'bracketology_saved_brackets';
 
 interface Participant {
   [key: string]: any;
-}
-
-interface Match {
-  player1: Participant | number | null;
-  player2: Participant | number | null;
-  winner?: Participant | number | null;
-  loser?: Participant | number | null;
-  round?: number;
-  matchInRound?: number;
-  bracket?: string;
-  [key: string]: any;
-}
-
-interface MatchHistoryEntry {
-  round: number;
-  opponent: Participant | number;
-  result: string;
-  matchNumber?: number;
-  bracket?: string;
-}
-
-interface Tournament {
-  type: string;
-  originalEntrants: (Participant | number)[];
-  completedMatches: Match[];
-  remainingParticipants: (Participant | number)[];
-  eliminationOrder: (Participant | number)[];
-  bracket: Match[];
-  lossCount:
-    | Map<Participant | number, number>
-    | [Participant | number, number][];
-  matchIndex: Map<any, any> | [any, any][];
-  _currentRound: number;
-  currentMatch: number;
 }
 
 interface TournamentState {
@@ -54,13 +23,14 @@ interface TournamentState {
   tournamentType: string;
   seedingMethod: string;
   tasks: Participant[];
-  tournament: Tournament | null;
-  currentMatch: Match | null;
-  matchHistory: Map<Participant, MatchHistoryEntry[]>;
+  tournament: InstanceType<typeof Tournament> | null;
+  currentMatch: any;
+  matchHistory: Map<Participant, any[]>;
 }
 
 export interface BracketData {
   id?: string;
+  version: string;
   name: string;
   status: string;
   csvData: Participant[];
@@ -69,10 +39,10 @@ export interface BracketData {
   selectedSecondaryFields: string[];
   tournamentType: string;
   seedingMethod: string;
-  tasks: (Participant | number)[];
+  tasks: Participant[];
   tournament: any;
   currentMatch: any;
-  matchHistory: [Participant | number, MatchHistoryEntry[]][];
+  matchHistory: any[];
   createdAt: string;
   lastModified: string;
 }
@@ -190,16 +160,8 @@ export class BracketStorage {
   }
 
   static serializeBracket(tournamentState: TournamentState): BracketData {
-    // Create an optimized version that uses participant indices instead of full objects
-    const participantMap = new Map<Participant, number>();
-    const csvData = tournamentState.csvData || [];
-
-    // Build participant lookup
-    csvData.forEach((participant, index) => {
-      participantMap.set(participant, index);
-    });
-
     return {
+      version: '2.0',
       name: tournamentState.tournamentName,
       status: tournamentState.currentPhase,
       csvData: tournamentState.csvData,
@@ -208,350 +170,52 @@ export class BracketStorage {
       selectedSecondaryFields: tournamentState.selectedSecondaryFields,
       tournamentType: tournamentState.tournamentType,
       seedingMethod: tournamentState.seedingMethod,
-      tasks: this.serializeParticipantArray(
-        tournamentState.tasks,
-        participantMap
-      ),
+      tasks: tournamentState.tasks,
       tournament: tournamentState.tournament
-        ? this.serializeTournament(tournamentState.tournament, participantMap)
+        ? (tournamentState.tournament.exportState ? tournamentState.tournament.exportState() : tournamentState.tournament)
         : null,
-      currentMatch: tournamentState.currentMatch
-        ? this.serializeMatch(tournamentState.currentMatch, participantMap)
-        : null,
-      matchHistory: this.serializeMatchHistory(
-        tournamentState.matchHistory,
-        participantMap
-      ),
+      currentMatch: tournamentState.currentMatch,
+      matchHistory: [], // Match history is handled internally by tournament-organizer
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),
     };
   }
 
-  static serializeParticipantArray(
-    participants: Participant[],
-    participantMap: Map<Participant, number>
-  ): (Participant | number)[] {
-    if (!participants || !Array.isArray(participants)) return [];
-    return participants
-      .map(participant => this.getParticipantIndex(participant, participantMap))
-      .filter((item): item is Participant | number => item !== null);
-  }
-
-  static serializeMatch(
-    match: Match,
-    participantMap: Map<Participant, number>
+  static deserializeBracket(
+    bracketData: BracketData,
+    options: TournamentOptions = {}
   ): any {
-    if (!match) return null;
-    return {
-      ...match,
-      player1: this.getParticipantIndex(match.player1, participantMap),
-      player2: this.getParticipantIndex(match.player2, participantMap),
-    };
-  }
-
-  static getParticipantIndex(
-    participant: Participant | number | null,
-    participantMap: Map<Participant, number>
-  ): Participant | number | null {
-    if (typeof participant === 'number') return participant; // Already an index
-    if (!participant) return null;
-    const index = participantMap.get(participant);
-    return index !== undefined ? index : participant; // Fallback to original if not found
-  }
-
-  static serializeTournament(
-    tournament: Tournament,
-    participantMap: Map<Participant, number>
-  ): any {
-    return {
-      type: tournament.type,
-      originalEntrants: this.serializeParticipantArray(
-        tournament.originalEntrants as Participant[],
-        participantMap
-      ),
-      completedMatches: this.serializeMatchArray(
-        tournament.completedMatches,
-        participantMap
-      ),
-      remainingParticipants: this.serializeParticipantArray(
-        tournament.remainingParticipants as Participant[],
-        participantMap
-      ),
-      eliminationOrder: this.serializeParticipantArray(
-        tournament.eliminationOrder as Participant[],
-        participantMap
-      ),
-      bracket: this.serializeBracketArray(tournament.bracket, participantMap),
-      lossCount: tournament.lossCount
-        ? this.serializeLossCount(tournament.lossCount, participantMap)
-        : [],
-      matchIndex: tournament.matchIndex
-        ? Array.from((tournament.matchIndex as Map<any, any>).entries())
-        : [],
-      _currentRound: tournament._currentRound,
-      currentMatch: tournament.currentMatch,
-    };
-  }
-
-  static serializeMatchArray(
-    matches: Match[],
-    participantMap: Map<Participant, number>
-  ): any[] {
-    if (!matches || !Array.isArray(matches)) return [];
-    return matches.map(match => ({
-      ...match,
-      player1: this.getParticipantIndex(match.player1, participantMap),
-      player2: this.getParticipantIndex(match.player2, participantMap),
-      winner: this.getParticipantIndex(match.winner || null, participantMap),
-      loser: this.getParticipantIndex(match.loser || null, participantMap),
-    }));
-  }
-
-  static serializeBracketArray(
-    bracket: Match[],
-    participantMap: Map<Participant, number>
-  ): any[] {
-    if (!bracket || !Array.isArray(bracket)) return [];
-    return bracket.map(match => ({
-      ...match,
-      player1: this.getParticipantIndex(match.player1, participantMap),
-      player2: this.getParticipantIndex(match.player2, participantMap),
-    }));
-  }
-
-  static serializeLossCount(
-    lossCount:
-      | Map<Participant | number, number>
-      | [Participant | number, number][],
-    participantMap: Map<Participant, number>
-  ): [Participant | number, number][] {
-    const entries = Array.isArray(lossCount)
-      ? lossCount
-      : Array.from(lossCount.entries());
-    return entries
-      .map(
-        ([participant, count]) =>
-          [this.getParticipantIndex(participant, participantMap), count] as [
-            Participant | number | null,
-            number,
-          ]
-      )
-      .filter(
-        (entry): entry is [Participant | number, number] => entry[0] !== null
-      );
-  }
-
-  static serializeMatchHistory(
-    matchHistory: Map<Participant, MatchHistoryEntry[]>,
-    participantMap: Map<Participant, number>
-  ): [Participant | number, MatchHistoryEntry[]][] {
-    if (!matchHistory || !(matchHistory instanceof Map)) return [];
-    return Array.from(matchHistory.entries())
-      .map(([participant, history]) => {
-        const participantIndex = this.getParticipantIndex(
-          participant,
-          participantMap
-        );
-        if (participantIndex === null) return null;
-
-        const serializedHistory = history
-          .map(match => {
-            const opponentIndex = this.getParticipantIndex(
-              match.opponent,
-              participantMap
-            );
-            if (opponentIndex === null) return null;
-            return {
-              ...match,
-              opponent: opponentIndex,
-            };
-          })
-          .filter((match): match is MatchHistoryEntry => match !== null);
-
-        return [participantIndex, serializedHistory] as [
-          Participant | number,
-          MatchHistoryEntry[],
-        ];
-      })
-      .filter(
-        (entry): entry is [Participant | number, MatchHistoryEntry[]] =>
-          entry !== null
-      );
-  }
-
-  static deserializeBracket(bracketData: BracketData): any {
     const state: any = { ...bracketData };
-    const participants = bracketData.csvData;
 
-    // Restore tasks
-    if (state.tasks) {
-      state.tasks = this.deserializeParticipantArray(state.tasks, participants);
-    }
-
-    // Restore tournament
+    // Restore tournament using the new API
     if (state.tournament) {
-      state.tournament = this.deserializeTournament(
-        state.tournament,
-        participants
-      );
-    }
+      try {
+        state.tournament = Tournament.fromStoredState(state.tournament, {
+          ...options,
+          taskNameColumn: bracketData.taskNameColumn,
+        });
+        state.tasks = bracketData.csvData; // Tasks are just the participants
+        state.currentMatch = null; // Current match is managed by tournament-organizer
+        state.matchHistory = new Map(); // Match history is managed internally
+      } catch (error) {
+        console.error('Error restoring tournament from stored state:', error);
+        console.warn('Creating fresh tournament...');
 
-    // Restore current match
-    if (state.currentMatch) {
-      state.currentMatch = this.deserializeMatch(
-        state.currentMatch,
-        participants
-      );
-    }
-
-    // Restore match history
-    if (state.matchHistory) {
-      state.matchHistory = this.deserializeMatchHistory(
-        state.matchHistory,
-        participants
-      );
-    } else {
-      state.matchHistory = new Map();
+        // Fallback to creating a new tournament with the same participants
+        state.tournament = new Tournament(
+          bracketData.tournamentType === 'double' ? 'double' : 'single',
+          bracketData.csvData,
+          {
+            ...options,
+            taskNameColumn: bracketData.taskNameColumn,
+          }
+        );
+        state.tasks = bracketData.csvData;
+        state.currentMatch = null;
+        state.matchHistory = new Map();
+      }
     }
 
     return state;
-  }
-
-  static deserializeParticipantArray(
-    indices: (Participant | number)[],
-    participants: Participant[]
-  ): Participant[] {
-    if (!indices || !Array.isArray(indices)) return [];
-    return indices.map(index =>
-      typeof index === 'number' && participants[index]
-        ? participants[index]
-        : (index as Participant)
-    );
-  }
-
-  static deserializeMatch(
-    match: any,
-    participants: Participant[]
-  ): Match | null {
-    if (!match) return null;
-    return {
-      ...match,
-      player1: this.restoreParticipant(match.player1, participants),
-      player2: this.restoreParticipant(match.player2, participants),
-    };
-  }
-
-  static restoreParticipant(
-    index: Participant | number | null,
-    participants: Participant[]
-  ): Participant | number | null {
-    if (typeof index === 'number' && participants && participants[index]) {
-      return participants[index];
-    }
-    return index; // Return as-is if not an index or participant not found
-  }
-
-  static deserializeMatchHistory(
-    matchHistoryData: [Participant | number, MatchHistoryEntry[]][],
-    participants: Participant[]
-  ): Map<Participant, MatchHistoryEntry[]> {
-    if (!matchHistoryData || !Array.isArray(matchHistoryData)) return new Map();
-
-    const matchHistory = new Map<Participant, MatchHistoryEntry[]>();
-    matchHistoryData.forEach(([participantIndex, history]) => {
-      const participant = this.restoreParticipant(
-        participantIndex,
-        participants
-      ) as Participant;
-      const restoredHistory = history.map(match => ({
-        ...match,
-        opponent: this.restoreParticipant(
-          match.opponent,
-          participants
-        ) as Participant,
-      }));
-      matchHistory.set(participant, restoredHistory);
-    });
-
-    return matchHistory;
-  }
-
-  static deserializeTournament(
-    tournamentData: any,
-    participants: Participant[]
-  ): Tournament {
-    return {
-      type: tournamentData.type,
-      originalEntrants: this.deserializeParticipantArray(
-        tournamentData.originalEntrants,
-        participants
-      ),
-      completedMatches: this.deserializeMatchArray(
-        tournamentData.completedMatches,
-        participants
-      ),
-      remainingParticipants: this.deserializeParticipantArray(
-        tournamentData.remainingParticipants,
-        participants
-      ),
-      eliminationOrder: this.deserializeParticipantArray(
-        tournamentData.eliminationOrder,
-        participants
-      ),
-      bracket: this.deserializeBracketArray(
-        tournamentData.bracket,
-        participants
-      ),
-      lossCount: tournamentData.lossCount
-        ? this.deserializeLossCount(tournamentData.lossCount, participants)
-        : new Map(),
-      matchIndex: tournamentData.matchIndex
-        ? new Map(tournamentData.matchIndex)
-        : new Map(),
-      _currentRound: tournamentData._currentRound || 1,
-      currentMatch: tournamentData.currentMatch || 1,
-    };
-  }
-
-  static deserializeMatchArray(
-    matches: any[],
-    participants: Participant[]
-  ): Match[] {
-    if (!matches || !Array.isArray(matches)) return [];
-    return matches.map(match => ({
-      ...match,
-      player1: this.restoreParticipant(match.player1, participants),
-      player2: this.restoreParticipant(match.player2, participants),
-      winner: this.restoreParticipant(match.winner, participants),
-      loser: this.restoreParticipant(match.loser, participants),
-    }));
-  }
-
-  static deserializeBracketArray(
-    bracket: any[],
-    participants: Participant[]
-  ): Match[] {
-    if (!bracket || !Array.isArray(bracket)) return [];
-    return bracket.map(match => ({
-      ...match,
-      player1: this.restoreParticipant(match.player1, participants),
-      player2: this.restoreParticipant(match.player2, participants),
-    }));
-  }
-
-  static deserializeLossCount(
-    lossCountData: [Participant | number, number][],
-    participants: Participant[]
-  ): Map<Participant | number, number> {
-    if (!lossCountData || !Array.isArray(lossCountData)) return new Map();
-    const lossCount = new Map<Participant | number, number>();
-    lossCountData.forEach(([participantIndex, count]) => {
-      const participant = this.restoreParticipant(
-        participantIndex,
-        participants
-      );
-      lossCount.set(participant!, count);
-    });
-    return lossCount;
   }
 }

@@ -577,17 +577,17 @@ describe('TournamentRunner', () => {
       });
 
       it('should calculate correct total matches for double elimination', () => {
-        // Double elimination matches based on tournament-pairings library structure
-        expect(new Tournament('double', ['A', 'B']).getTotalMatches()).toBe(3);
+        // tournament-organizer falls back to single elimination for <4 players
+        expect(new Tournament('double', ['A', 'B']).getTotalMatches()).toBe(1);
         expect(
           new Tournament('double', ['A', 'B', 'C']).getTotalMatches()
-        ).toBe(4); // Updated to match actual library behavior
+        ).toBe(2); // Falls back to single elimination (3-1=2 matches)
         expect(
           new Tournament('double', ['A', 'B', 'C', 'D']).getTotalMatches()
-        ).toBe(6); // Updated to match actual library behavior
+        ).toBe(6); // True double elimination with 4 players
         expect(
           new Tournament('double', ['A', 'B', 'C', 'D', 'E']).getTotalMatches()
-        ).toBe(8); // Updated to match actual library behavior
+        ).toBe(8); // True double elimination with 5 players
       });
 
       it('should handle larger double elimination tournaments', () => {

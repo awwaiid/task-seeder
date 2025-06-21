@@ -38,26 +38,4 @@ export interface MatchHistoryEntry {
   bracket?: string;
 }
 
-export interface Match {
-  player1: Participant | number | null;
-  player2: Participant | number | null;
-  winner?: Participant | number | null;
-  loser?: Participant | number | null;
-  round?: number;
-  matchInRound?: number;
-  bracket?: string;
-  [key: string]: any;
-}
-
-export interface Tournament {
-  type: string;
-  originalEntrants: Participant[];
-  completedMatches: Match[];
-  remainingParticipants: Participant[];
-  eliminationOrder: Participant[];
-  bracket: Match[];
-  lossCount: Map<Participant, number>;
-  matchIndex: Map<any, any>;
-  _currentRound: number;
-  currentMatch: number;
-}
+// Removed legacy Match and Tournament interfaces - tournament-organizer handles these internally

@@ -237,13 +237,11 @@ describe('TournamentManager Integration Tests', () => {
 
     it('should generate default tournament name', async () => {
       const mockConfig = {
-        csvData: [{ 'Task Name': 'Task 1' }],
-        csvHeaders: ['Task Name'],
+        tasks: [{ 'Task Name': 'Task 1' }],
+        name: 'Task Ranking Tournament',
+        type: 'single',
         taskNameColumn: 'Task Name',
         selectedSecondaryFields: [],
-        tournamentType: 'single',
-        seedingMethod: 'order',
-        tournamentName: 'Task Ranking Tournament',
       };
 
       wrapper.vm.handleStartTournament(mockConfig);
@@ -254,18 +252,16 @@ describe('TournamentManager Integration Tests', () => {
 
     it('should show correct total matches calculation', async () => {
       const mockConfig = {
-        csvData: [
+        tasks: [
           { 'Task Name': 'Task 1' },
           { 'Task Name': 'Task 2' },
           { 'Task Name': 'Task 3' },
           { 'Task Name': 'Task 4' },
         ],
-        csvHeaders: ['Task Name'],
+        name: 'Test Tournament',
+        type: 'single',
         taskNameColumn: 'Task Name',
         selectedSecondaryFields: [],
-        tournamentType: 'single',
-        seedingMethod: 'order',
-        tournamentName: 'Test Tournament',
       };
 
       wrapper.vm.handleStartTournament(mockConfig);
@@ -460,18 +456,18 @@ describe('TournamentManager Integration Tests', () => {
     });
 
     it('should allow starting tournament with demo data', async () => {
-      // Simulate starting tournament with demo data
+      // Simulate starting tournament with demo data (matches actual demo data)
       const demoConfig = {
-        csvData: Array.from({ length: 15 }, (_, i) => ({
-          name: `Demo Task ${i + 1}`,
-          priority: 'High',
-        })),
-        csvHeaders: ['name', 'priority'],
+        tasks: [
+          { name: 'Fix critical bug', priority: 'high' },
+          { name: 'Add new feature', priority: 'medium' },
+          { name: 'Update documentation', priority: 'low' },
+          { name: 'Refactor code', priority: 'medium' }
+        ],
+        name: 'Demo Tournament',
+        type: 'single',
         taskNameColumn: 'name',
         selectedSecondaryFields: ['priority'],
-        tournamentType: 'single',
-        seedingMethod: 'order',
-        tournamentName: 'Demo Tournament',
       };
 
       wrapper.vm.handleStartTournament(demoConfig);
@@ -479,7 +475,7 @@ describe('TournamentManager Integration Tests', () => {
 
       // Should move to matchups phase
       expect(wrapper.vm.currentPhase).toBe('matchups');
-      expect(wrapper.vm.tasks.length).toBe(15);
+      expect(wrapper.vm.tasks.length).toBe(4);
     });
   });
 });
