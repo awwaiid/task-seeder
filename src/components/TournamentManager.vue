@@ -131,11 +131,16 @@ const currentRoundMatches = computed(
 );
 const currentBracketType = computed(() => 'main'); // Simplified for now
 
-// User-visible matches (excludes byes and automatic matches)
-const totalUserVisibleMatches = computed(() => {
+// User-visible matches (excludes byes and automatic matches) - used by tests
+const _totalUserVisibleMatches = computed(() => {
   if (!tournament.value) return 0;
   // Count matches that actually require user input
   return tournament.value.getTotalMatches();
+});
+
+// Export for testing
+defineExpose({
+  _totalUserVisibleMatches,
 });
 
 // Final results
@@ -146,11 +151,11 @@ const finalRankings = computed(() => {
 
 function handleStartTournament(setupData: any) {
   // Extract tournament data from setup
-  tournamentName.value = setupData.name || 'Tournament';
-  tournamentType.value = setupData.type || 'single';
+  tournamentName.value = setupData.tournamentName || 'Tournament';
+  tournamentType.value = setupData.tournamentType || 'single';
   taskNameColumn.value = setupData.taskNameColumn || '';
   selectedSecondaryFields.value = setupData.selectedSecondaryFields || [];
-  tasks.value = setupData.tasks || [];
+  tasks.value = setupData.csvData || [];
 
   // Create new tournament
   tournament.value = new Tournament(tournamentType.value, tasks.value, {

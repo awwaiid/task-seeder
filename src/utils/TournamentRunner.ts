@@ -25,11 +25,12 @@ export class Tournament {
     if (!this.tournament?.matches) return [];
     // Only return matches that have both players and were actually played
     return this.tournament.matches
-      .filter((match: any) => 
-        match.active === false && 
-        match.player1?.id && 
-        match.player2?.id &&
-        !match.bye // Exclude bye matches
+      .filter(
+        (match: any) =>
+          match.active === false &&
+          match.player1?.id &&
+          match.player2?.id &&
+          !match.bye // Exclude bye matches
       )
       .map((match: any) => ({
         ...match,
@@ -161,9 +162,9 @@ export class Tournament {
     if (!this.tournament?.matches) return 1;
     // Count only actual played matches (not byes or auto-completed)
     const completedMatches = this.tournament.matches.filter(
-      (match: any) => 
-        match.active === false && 
-        match.player1?.id && 
+      (match: any) =>
+        match.active === false &&
+        match.player1?.id &&
         match.player2?.id &&
         !match.bye
     ).length;
@@ -188,17 +189,39 @@ export class Tournament {
 
   getRankings(): Participant[] {
     try {
-      if (!this.tournament || !this.tournament.standings) {
+      if (!this.tournament) {
         return this.originalEntrants;
       }
-      const standings = this.tournament.standings(false); // Include all players
+
+      // Check if tournament is complete before getting standings
+      if (this.tournament.status !== 'complete') {
+        return this.originalEntrants;
+      }
+
+      // Try to get standings with error handling
+      let standings: any[];
+      try {
+        standings = this.tournament.standings(false); // Include all players
+      } catch (standingsError) {
+        console.error('Error calling standings():', standingsError);
+        // Fallback: return participants in original order
+        return this.originalEntrants;
+      }
+
+      if (!standings || !Array.isArray(standings)) {
+        return this.originalEntrants;
+      }
+
       return standings
-        .map((standing: any) =>
-          this._findParticipantByPlayerId(standing.player.id)
-        )
-        .filter(Boolean);
+        .map((standing: any) => {
+          if (standing && standing.player && standing.player.id) {
+            return this._findParticipantByPlayerId(standing.player.id);
+          }
+          return null;
+        })
+        .filter((p): p is Participant => p !== null);
     } catch (error) {
-      console.warn('Error getting rankings:', error);
+      console.error('Error getting rankings:', error);
       return this.originalEntrants;
     }
   }
@@ -273,7 +296,7 @@ export class Tournament {
         scoring: this.tournament.scoring,
         stageOne: this.tournament.stageOne,
         stageTwo: this.tournament.stageTwo,
-        meta: this.tournament.meta
+        meta: this.tournament.meta,
       },
       tournamentId: this.tournamentId,
     };

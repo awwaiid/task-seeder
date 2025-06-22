@@ -269,7 +269,7 @@ describe('TournamentManager Integration Tests', () => {
 
       // Check that we moved to matchups phase and the tournament was created
       expect(wrapper.vm.currentPhase).toBe('matchups');
-      expect(wrapper.vm.totalUserVisibleMatches).toBe(3); // 4 tasks = 3 matches
+      expect(wrapper.vm._totalUserVisibleMatches).toBe(3); // 4 tasks = 3 matches
     });
 
     it('should enable start button after valid CSV is loaded', async () => {
@@ -462,7 +462,7 @@ describe('TournamentManager Integration Tests', () => {
           { name: 'Fix critical bug', priority: 'high' },
           { name: 'Add new feature', priority: 'medium' },
           { name: 'Update documentation', priority: 'low' },
-          { name: 'Refactor code', priority: 'medium' }
+          { name: 'Refactor code', priority: 'medium' },
         ],
         name: 'Demo Tournament',
         type: 'single',

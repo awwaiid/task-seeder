@@ -172,7 +172,9 @@ export class BracketStorage {
       seedingMethod: tournamentState.seedingMethod,
       tasks: tournamentState.tasks,
       tournament: tournamentState.tournament
-        ? (tournamentState.tournament.exportState ? tournamentState.tournament.exportState() : tournamentState.tournament)
+        ? tournamentState.tournament.exportState
+          ? tournamentState.tournament.exportState()
+          : tournamentState.tournament
         : null,
       currentMatch: tournamentState.currentMatch,
       matchHistory: [], // Match history is handled internally by tournament-organizer
