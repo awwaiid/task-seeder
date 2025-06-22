@@ -7,6 +7,7 @@ import type {
   TournamentOptions,
   ActiveMatch,
   Participant,
+  SeedingMethod,
 } from '../types/tournament';
 
 export type { TournamentType, TournamentOptions, ActiveMatch };
@@ -66,11 +67,17 @@ export class Tournament {
     }
 
     this.type = type;
-    this.originalEntrants = [...entrants];
     this.taskNameColumn = options.taskNameColumn;
 
+    // Apply seeding to entrants
+    const seedingMethod = options.seedingMethod || 'order';
+    const seededEntrants = this._applySeedingMethod(entrants, seedingMethod);
+
+    // Store the seeded order for player ID mapping, but preserve original for reference
+    this.originalEntrants = [...seededEntrants];
+
     // Handle single participant tournaments
-    if (entrants.length === 1) {
+    if (seededEntrants.length === 1) {
       // Create a dummy tournament that's already complete
       this.manager = new TournamentOrganizer();
       this.tournament = {
@@ -93,7 +100,7 @@ export class Tournament {
 
     // Double elimination requires at least 4 players according to tournament-organizer
     // But we'll fall back to single elimination for smaller tournaments
-    if (type === 'double' && entrants.length < 4) {
+    if (type === 'double' && seededEntrants.length < 4) {
       console.warn(
         'Double elimination requires at least 4 participants. Falling back to single elimination.'
       );
@@ -108,15 +115,15 @@ export class Tournament {
     });
     this.tournamentId = this.tournament.id;
 
-    // Add all participants to tournament
-    entrants.forEach((entrant, index) => {
+    // Add all participants to tournament (using seeded order)
+    seededEntrants.forEach((entrant, index) => {
       const playerId = `player_${index}`;
       const displayName = this._getParticipantDisplayName(entrant);
       this.tournament.createPlayer(displayName, playerId);
     });
 
     // Start the tournament if we have enough players
-    if (entrants.length >= 2) {
+    if (seededEntrants.length >= 2) {
       this.tournament.start();
     }
   }
@@ -198,28 +205,24 @@ export class Tournament {
         return this.originalEntrants;
       }
 
-      // Try to get standings with error handling
-      let standings: any[];
+      // Since tournament-organizer has a private member access bug in Vue context
+      // when calling standings(), we'll manually extract the final rankings
+      // from the completed tournament matches by finding the winner path
       try {
-        standings = this.tournament.standings(false); // Include all players
-      } catch (standingsError) {
-        console.error('Error calling standings():', standingsError);
-        // Fallback: return participants in original order
+        // For single elimination, find the final match winner and trace back the bracket
+        if (this.type === 'single') {
+          return this._extractSingleEliminationRankings();
+        } else {
+          // For double elimination, use a more complex ranking extraction
+          return this._extractDoubleEliminationRankings();
+        }
+      } catch (extractError) {
+        console.warn(
+          'Failed to extract rankings from tournament structure:',
+          extractError
+        );
         return this.originalEntrants;
       }
-
-      if (!standings || !Array.isArray(standings)) {
-        return this.originalEntrants;
-      }
-
-      return standings
-        .map((standing: any) => {
-          if (standing && standing.player && standing.player.id) {
-            return this._findParticipantByPlayerId(standing.player.id);
-          }
-          return null;
-        })
-        .filter((p): p is Participant => p !== null);
     } catch (error) {
       console.error('Error getting rankings:', error);
       return this.originalEntrants;
@@ -261,7 +264,6 @@ export class Tournament {
     const isPlayer1Winner =
       this._findParticipantByPlayerId(originalMatch.player1.id) === winner;
 
-    // Report result to tournament-organizer (winner gets 1 win, loser gets 0)
     this.tournament.enterResult(
       originalMatch.id,
       isPlayer1Winner ? 1 : 0, // player1 wins
@@ -272,6 +274,7 @@ export class Tournament {
     const activeMatches = this.tournament.matches.filter(
       (m: any) => m.active === true
     );
+
     if (activeMatches.length === 0 && this.tournament.status !== 'complete') {
       this.tournament.end();
     }
@@ -364,6 +367,32 @@ export class Tournament {
     return null;
   }
 
+  private _applySeedingMethod(
+    entrants: Participant[],
+    seedingMethod: SeedingMethod
+  ): Participant[] {
+    switch (seedingMethod) {
+      case 'random': {
+        // Create a copy and shuffle it
+        const shuffled = [...entrants];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const temp = shuffled[i];
+          if (temp && shuffled[j]) {
+            shuffled[i] = shuffled[j];
+            shuffled[j] = temp;
+          }
+        }
+        return shuffled;
+      }
+
+      case 'order':
+      default:
+        // Return participants in their original order
+        return [...entrants];
+    }
+  }
+
   private _getMatchWinner(match: any): Participant | null {
     if (!match.player1 || !match.player2) return null;
 
@@ -392,6 +421,66 @@ export class Tournament {
     }
 
     return null;
+  }
+
+  private _extractSingleEliminationRankings(): Participant[] {
+    // Find the final match (highest round number)
+    const maxRound = Math.max(
+      ...this.tournament.matches.map((m: any) => m.round)
+    );
+    const finalMatch = this.tournament.matches.find(
+      (m: any) => m.round === maxRound
+    );
+
+    if (!finalMatch || !finalMatch.player1 || !finalMatch.player2) {
+      return this.originalEntrants;
+    }
+
+    // Determine the champion (winner of final match)
+    const champion = this._getMatchWinner(finalMatch);
+    const runnerUp = this._getMatchLoser(finalMatch);
+
+    if (!champion || !runnerUp) {
+      return this.originalEntrants;
+    }
+
+    // Start with champion and runner-up
+    const rankings: Participant[] = [champion, runnerUp];
+
+    // For each round from highest to lowest, find eliminated players
+    for (let round = maxRound - 1; round >= 1; round--) {
+      const roundMatches = this.tournament.matches.filter(
+        (m: any) => m.round === round && !m.active
+      );
+
+      // Sort matches by elimination order within the round
+      const roundEliminated: Participant[] = [];
+      roundMatches.forEach((match: any) => {
+        const loser = this._getMatchLoser(match);
+        if (loser && !rankings.includes(loser)) {
+          roundEliminated.push(loser);
+        }
+      });
+
+      // Add eliminated players from this round (they all have same placement)
+      rankings.push(...roundEliminated);
+    }
+
+    // Add any remaining participants who weren't in matches (shouldn't happen in proper tournament)
+    this.originalEntrants.forEach(participant => {
+      if (!rankings.includes(participant)) {
+        rankings.push(participant);
+      }
+    });
+
+    return rankings;
+  }
+
+  private _extractDoubleEliminationRankings(): Participant[] {
+    // For double elimination, this is more complex as we need to track
+    // both winner and loser brackets. For now, fall back to single elimination logic
+    // TODO: Implement proper double elimination ranking extraction
+    return this._extractSingleEliminationRankings();
   }
 
   private static _migrateLegacyFormat(

@@ -30,8 +30,8 @@ test('upload CSV file and start tournament', async ({ page }) => {
   await expect(page.locator('.task-choice')).toBeVisible();
   await expect(page.locator('.task-button')).toHaveCount(2);
 
-  // Check progress indicator appears (might not be Match 1 if byes were skipped)
-  await expect(page.locator('h2').filter({ hasText: 'Match' })).toBeVisible();
+  // Check progress indicator appears
+  await expect(page.locator('h2').filter({ hasText: 'Match 1' })).toBeVisible();
 
   // Verify task buttons have content and no "bye" is shown
   const taskButtons = page.locator('.task-button');

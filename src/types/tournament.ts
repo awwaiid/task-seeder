@@ -19,6 +19,7 @@ export type SeedingMethod = 'order' | 'random';
 export interface TournamentOptions {
   progressCallback?: ((progress: any) => void) | null;
   taskNameColumn?: string;
+  seedingMethod?: SeedingMethod;
 }
 
 export interface ActiveMatch {

@@ -237,9 +237,9 @@ describe('TournamentManager Integration Tests', () => {
 
     it('should generate default tournament name', async () => {
       const mockConfig = {
-        tasks: [{ 'Task Name': 'Task 1' }],
-        name: 'Task Ranking Tournament',
-        type: 'single',
+        csvData: [{ 'Task Name': 'Task 1' }],
+        tournamentName: 'Task Ranking Tournament',
+        tournamentType: 'single',
         taskNameColumn: 'Task Name',
         selectedSecondaryFields: [],
       };
@@ -252,14 +252,14 @@ describe('TournamentManager Integration Tests', () => {
 
     it('should show correct total matches calculation', async () => {
       const mockConfig = {
-        tasks: [
+        csvData: [
           { 'Task Name': 'Task 1' },
           { 'Task Name': 'Task 2' },
           { 'Task Name': 'Task 3' },
           { 'Task Name': 'Task 4' },
         ],
-        name: 'Test Tournament',
-        type: 'single',
+        tournamentName: 'Test Tournament',
+        tournamentType: 'single',
         taskNameColumn: 'Task Name',
         selectedSecondaryFields: [],
       };
@@ -458,14 +458,14 @@ describe('TournamentManager Integration Tests', () => {
     it('should allow starting tournament with demo data', async () => {
       // Simulate starting tournament with demo data (matches actual demo data)
       const demoConfig = {
-        tasks: [
+        csvData: [
           { name: 'Fix critical bug', priority: 'high' },
           { name: 'Add new feature', priority: 'medium' },
           { name: 'Update documentation', priority: 'low' },
           { name: 'Refactor code', priority: 'medium' },
         ],
-        name: 'Demo Tournament',
-        type: 'single',
+        tournamentName: 'Demo Tournament',
+        tournamentType: 'single',
         taskNameColumn: 'name',
         selectedSecondaryFields: ['priority'],
       };
