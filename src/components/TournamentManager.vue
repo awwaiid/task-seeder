@@ -442,45 +442,63 @@ function toggleTaskHistory(task: Participant) {
 function buildMatchHistoryFromTournament() {
   if (!tournament.value) return;
 
-  // Reset match history
+  // Reset match history - use finalRankings objects as keys since that's what the UI displays
   matchHistory.value = new Map();
-  tasks.value.forEach(task => {
+  const rankings = tournament.value.getRankings();
+  rankings.forEach(task => {
     matchHistory.value.set(task, []);
   });
 
-  // Get completed matches from tournament
+  // Use the Tournament class's matches getter which already filters and processes matches correctly
   const completedMatches = tournament.value.matches;
-  console.log(
-    'Building match history from completed matches:',
-    completedMatches
-  );
+  
+  completedMatches.forEach((match: any, index: number) => {
+    const matchWinner = match.winner;
+    const matchLoser = match.loser;
+    
+    if (!matchWinner || !matchLoser) return;
 
-  completedMatches.forEach((match: any) => {
-    if (match.winner && match.loser) {
-      // Add win record for winner
-      const winRecord: MatchHistoryEntry = {
-        round: match.round || 1,
-        opponent: match.loser,
-        result: 'W',
-        matchNumber: match.id || 0,
-        bracket: 'main',
-      };
+    // Find the actual task objects from rankings that match the winner/loser
+    // This is needed because the match winner/loser might not have the same object identity
+    const winner = rankings.find(task => 
+      task === matchWinner || 
+      (task.name === matchWinner.name) ||
+      (task.ID === matchWinner.ID) ||
+      JSON.stringify(task) === JSON.stringify(matchWinner)
+    );
+    
+    const loser = rankings.find(task => 
+      task === matchLoser || 
+      (task.name === matchLoser.name) ||
+      (task.ID === matchLoser.ID) ||
+      JSON.stringify(task) === JSON.stringify(matchLoser)
+    );
+    
+    if (!winner || !loser) return;
 
-      // Add loss record for loser
-      const lossRecord: MatchHistoryEntry = {
-        round: match.round || 1,
-        opponent: match.winner,
-        result: 'L',
-        matchNumber: match.id || 0,
-        bracket: 'main',
-      };
+    // Add win record for winner
+    const winRecord: MatchHistoryEntry = {
+      round: match.round || 1,
+      opponent: loser,
+      result: 'W',
+      matchNumber: index + 1,
+      bracket: 'main',
+    };
 
-      if (matchHistory.value.has(match.winner)) {
-        matchHistory.value.get(match.winner)!.push(winRecord);
-      }
-      if (matchHistory.value.has(match.loser)) {
-        matchHistory.value.get(match.loser)!.push(lossRecord);
-      }
+    // Add loss record for loser
+    const lossRecord: MatchHistoryEntry = {
+      round: match.round || 1,
+      opponent: winner,
+      result: 'L',
+      matchNumber: index + 1,
+      bracket: 'main',
+    };
+
+    if (matchHistory.value.has(winner)) {
+      matchHistory.value.get(winner)!.push(winRecord);
+    }
+    if (matchHistory.value.has(loser)) {
+      matchHistory.value.get(loser)!.push(lossRecord);
     }
   });
 }
@@ -575,15 +593,18 @@ function loadBracket(bracketId: string) {
     matchHistory.value = state.matchHistory || new Map();
     currentBracketId.value = bracketId;
 
-    // Restore tournament with proper Tournament instance
+    // Tournament instance already restored by deserializeBracket
     if (state.tournament) {
-      tournament.value = Tournament.fromStoredState(state.tournament, {
-        taskNameColumn: taskNameColumn.value,
-      });
+      tournament.value = state.tournament;
 
       // Update currentMatch to the actual next match
-      if (currentPhase.value === 'matchups') {
+      if (currentPhase.value === 'matchups' && tournament.value) {
         currentMatch.value = tournament.value.getNextMatch();
+      }
+      
+      // Always rebuild match history for completed tournaments
+      if (currentPhase.value === 'results' && tournament.value && tournament.value.isComplete()) {
+        buildMatchHistoryFromTournament();
       }
     }
 

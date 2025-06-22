@@ -1,5 +1,219 @@
 <template>
   <div class="container">
+    <!-- Saved Brackets Section -->
+    <div
+      v-if="savedBrackets.length > 0"
+      class="saved-brackets"
+      style="
+        margin-bottom: 30px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+      "
+    >
+      <h2>Continue Previous Brackets</h2>
+      <p style="color: #666; margin-bottom: 15px">
+        Pick up where you left off with your saved bracket tournaments:
+      </p>
+
+      <div style="display: grid; gap: 12px">
+        <div
+          v-for="bracket in savedBrackets"
+          :key="bracket.id || bracket.name || ''"
+          class="bracket-card"
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+          "
+        >
+          <div class="bracket-info" style="flex: 1">
+            <div style="font-weight: bold; margin-bottom: 4px">
+              {{ bracket.name }}
+            </div>
+            <div style="font-size: 12px; color: #666">
+              {{ bracket.status === 'results' ? 'Completed' : 'In Progress' }} •
+              {{ bracket.csvData?.length || 0 }} tasks •
+              {{ bracket.tournamentType === 'double' ? 'Double' : 'Single' }}
+              elimination •
+              {{ formatDate(bracket.lastModified) }}
+            </div>
+          </div>
+          <div class="bracket-actions" style="display: flex; gap: 8px">
+            <button
+              style="
+                padding: 6px 12px;
+                background: #3498db;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+              "
+              @click="$emit('load-bracket', bracket.id || '')"
+            >
+              {{ bracket.status === 'results' ? 'View Results' : 'Continue' }}
+            </button>
+            <button
+              style="
+                padding: 6px 8px;
+                background: #27ae60;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+              "
+              title="Share bracket via URL"
+              @click="$emit('share-bracket', bracket.id || '')"
+            >
+              🔗
+            </button>
+            <button
+              style="
+                padding: 6px 8px;
+                background: #e74c3c;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+              "
+              title="Delete bracket"
+              @click="$emit('delete-bracket', bracket.id || '')"
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- URL Bracket Loaded Notice (only shown if auto-save failed) -->
+    <div
+      v-if="loadedFromUrl"
+      style="
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: #fff3cd;
+        border-radius: 8px;
+        border-left: 4px solid #ffc107;
+      "
+    >
+      <h3 style="margin-top: 0; color: #856404">
+        Bracket Loaded from Shared URL
+      </h3>
+      <p style="margin-bottom: 10px; color: #666">
+        We couldn't automatically save this shared bracket to your browser
+        storage. You can save it manually or continue without saving.
+      </p>
+      <button
+        style="
+          padding: 8px 16px;
+          background: #ffc107;
+          color: #212529;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          margin-right: 10px;
+        "
+        @click="$emit('save-locally')"
+      >
+        💾 Save Locally
+      </button>
+      <button
+        style="
+          padding: 8px 16px;
+          background: #6c757d;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        "
+        @click="$emit('dismiss-url-notice')"
+      >
+        Continue Without Saving
+      </button>
+    </div>
+
+    <!-- Storage Warning -->
+    <div
+      v-if="showStorageWarning"
+      style="
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background-color: #fff3cd;
+        border-radius: 6px;
+        border-left: 4px solid #ffc107;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      "
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span style="color: #856404; font-size: 16px">⚠️</span>
+        <span style="color: #856404; font-weight: 500"
+          >Browser storage is {{ storageUsage?.usagePercent }}% full ({{
+            storageUsage?.totalMB
+          }}MB). Old brackets may be automatically cleaned up.</span
+        >
+      </div>
+      <button
+        style="
+          padding: 4px 8px;
+          background: #ffc107;
+          color: #212529;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 12px;
+        "
+        @click="$emit('cleanup-storage')"
+      >
+        Clean Up
+      </button>
+    </div>
+
+    <!-- Auto-save Success Notice -->
+    <div
+      v-if="showAutoSaveNotice"
+      style="
+        margin-bottom: 20px;
+        padding: 12px 16px;
+        background-color: #d1edff;
+        border-radius: 6px;
+        border-left: 4px solid #0ea5e9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      "
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span style="color: #0ea5e9; font-size: 16px">💾</span>
+        <span style="color: #0369a1; font-weight: 500"
+          >Shared bracket automatically saved to your browser!</span
+        >
+      </div>
+      <button
+        style="
+          background: none;
+          border: none;
+          color: #0369a1;
+          cursor: pointer;
+          padding: 4px;
+          font-size: 18px;
+        "
+        title="Dismiss"
+        @click="$emit('dismiss-auto-save')"
+      >
+        ✕
+      </button>
+    </div>
+
     <h2>Start New Bracket</h2>
 
     <!-- Upload and Demo Options Container -->
@@ -187,9 +401,9 @@
         <div class="tournament-options" style="margin-top: 10px">
           <div
             class="option"
-            :class="{ selected: seedingMethod === 'tournament' }"
+            :class="{ selected: seedingMethod === 'order' }"
             style="cursor: pointer"
-            @click="seedingMethod = 'tournament'"
+            @click="seedingMethod = 'order'"
           >
             <strong>Tournament Seeding</strong><br />
             <small>1st vs last, 2nd vs 2nd-to-last, etc.</small>
@@ -228,11 +442,32 @@
         {{ calculateTotalMatchesForUI() }}
       </p>
 
+      <!-- Progress indicator for large tournaments -->
+      <div
+        v-if="tournamentSetupProgress"
+        style="
+          margin: 20px 0;
+          padding: 15px;
+          background-color: #e3f2fd;
+          border-radius: 6px;
+          border-left: 4px solid #2196f3;
+        "
+      >
+        <div style="display: flex; align-items: center; gap: 10px">
+          <div class="spinner"></div>
+          <span style="color: #1976d2; font-weight: 500">{{
+            tournamentSetupProgress
+          }}</span>
+        </div>
+      </div>
+
       <button
-        :disabled="!taskNameColumn || !tournamentName.trim()"
+        :disabled="
+          !taskNameColumn || !tournamentName.trim() || !!tournamentSetupProgress
+        "
         @click="handleStartTournament"
       >
-        Start Task Ranking
+        {{ tournamentSetupProgress ? 'Setting up...' : 'Start Task Ranking' }}
       </button>
     </div>
   </div>
@@ -241,6 +476,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import Papa from 'papaparse';
+import type { StorageUsage } from '../utils/StorageOptimizer';
+import type { Task, TournamentType, SeedingMethod } from '../types/tournament';
 
 // Demo data from original
 const DEMO_CSV_DATA = [
@@ -396,27 +633,45 @@ const DEMO_CSV_DATA = [
   },
 ];
 
+// Props
+defineProps<{
+  savedBrackets: any[];
+  loadedFromUrl: boolean;
+  showAutoSaveNotice: boolean;
+  showStorageWarning: boolean;
+  storageUsage: StorageUsage | null;
+  tournamentSetupProgress: string;
+}>();
+
+// Emits
 const emit = defineEmits<{
+  'load-bracket': [bracketId: string];
+  'delete-bracket': [bracketId: string];
+  'share-bracket': [bracketId: string];
+  'save-locally': [];
+  'dismiss-url-notice': [];
+  'dismiss-auto-save': [];
+  'cleanup-storage': [];
   'start-tournament': [
     config: {
-      csvData: any[];
+      csvData: Task[];
       csvHeaders: string[];
       taskNameColumn: string;
       selectedSecondaryFields: string[];
-      tournamentType: 'single' | 'double';
-      seedingMethod: 'tournament' | 'random';
+      tournamentType: TournamentType;
+      seedingMethod: SeedingMethod;
       tournamentName: string;
     },
   ];
 }>();
 
 // State
-const csvData = ref<any[]>([]);
+const csvData = ref<Task[]>([]);
 const csvHeaders = ref<string[]>([]);
 const taskNameColumn = ref<string>('');
 const selectedSecondaryFields = ref<string[]>([]);
-const tournamentType = ref<'single' | 'double'>('single');
-const seedingMethod = ref<'tournament' | 'random'>('tournament');
+const tournamentType = ref<TournamentType>('single');
+const seedingMethod = ref<SeedingMethod>('order');
 const tournamentName = ref<string>('');
 const isDragOver = ref<boolean>(false);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -511,7 +766,7 @@ function processFile(file: File) {
     header: true,
     skipEmptyLines: true,
     complete: function (results: any) {
-      csvData.value = results.data as any[];
+      csvData.value = results.data as Task[];
       csvHeaders.value =
         results.meta.fields || Object.keys(results.data[0] || {});
 
@@ -574,6 +829,19 @@ const calculateTotalMatchesForType = (type: string) => {
 const calculateTotalMatchesForUI = () =>
   calculateTotalMatchesForType(tournamentType.value);
 
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return (
+      date.toLocaleDateString() +
+      ' ' +
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
+  } catch {
+    return 'Unknown';
+  }
+}
+
 function handleStartTournament() {
   if (!taskNameColumn.value || !tournamentName.value.trim()) {
     alert('Please select a task name column and enter a tournament name.');
@@ -627,6 +895,24 @@ function handleStartTournament() {
 @media (max-width: 768px) {
   .tournament-options {
     grid-template-columns: 1fr;
+  }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #2196f3;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }
 </style>

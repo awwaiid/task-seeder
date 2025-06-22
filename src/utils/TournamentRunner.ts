@@ -194,6 +194,10 @@ export class Tournament {
     return this.tournament.status === 'complete';
   }
 
+  findParticipantByPlayerId(playerId: string): Participant | null {
+    return this._findParticipantByPlayerId(playerId);
+  }
+
   getRankings(): Participant[] {
     try {
       if (!this.tournament) {

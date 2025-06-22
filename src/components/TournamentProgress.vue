@@ -206,6 +206,6 @@ const bracketDescription = computed(() => {
       return 'Bracket reset - both players have one loss';
     }
   }
-  return '';
+  return props.currentBracketType;
 });
 </script>

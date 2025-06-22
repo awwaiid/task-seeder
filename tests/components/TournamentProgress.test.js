@@ -49,14 +49,6 @@ describe('TournamentProgress Component', () => {
       const text = wrapper.text();
       expect(text).toContain('Total match 1 of 7 (0%)');
     });
-
-    it.skip('should render debug information', () => {
-      const debugInfo = wrapper.find('.debug-info');
-      expect(debugInfo.exists()).toBe(true);
-      expect(debugInfo.text()).toContain('Tasks: 8');
-      expect(debugInfo.text()).toContain('Round: 0');
-      expect(debugInfo.text()).toContain('Matchup: 0');
-    });
   });
 
   describe('Progress Calculations', () => {
@@ -252,32 +244,6 @@ describe('TournamentProgress Component', () => {
       const header = wrapper.find('h2');
       expect(header.text()).toContain('Round 1 of 3');
       expect(header.text()).toContain('Match 1 of 3'); // floor(7/2) = 3 first round matches
-    });
-  });
-
-  describe('Debug Information', () => {
-    it.skip('should display all debug values correctly', () => {
-      const debugText = wrapper.find('.debug-info').text();
-
-      expect(debugText).toContain('Tasks: 8');
-      expect(debugText).toContain('Round: 0');
-      expect(debugText).toContain('Matchup: 0');
-      expect(debugText).toContain('Total Rounds: 3');
-      expect(debugText).toContain('Round Matches: 4');
-      expect(debugText).toContain('Global: 1/7 (0%)');
-    });
-
-    it.skip('should update debug info when props change', async () => {
-      await wrapper.setProps({
-        currentRound: 1,
-        currentMatchup: 1,
-        completedMatches: 5,
-      });
-
-      const debugText = wrapper.find('.debug-info').text();
-      expect(debugText).toContain('Round: 1');
-      expect(debugText).toContain('Matchup: 1');
-      expect(debugText).toContain('Global: 6/7'); // 5 completed + 1 current
     });
   });
 
