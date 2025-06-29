@@ -144,12 +144,13 @@
 
                   <div
                     v-if="
-                      matchHistory.has(task) &&
-                      matchHistory.get(task)!.length > 0
+                      getUuidByTask(task) &&
+                      matchHistory.has(getUuidByTask(task)!) &&
+                      matchHistory.get(getUuidByTask(task)!)!.length > 0
                     "
                   >
                     <div
-                      v-for="(match, matchIndex) in matchHistory.get(task)"
+                      v-for="(match, matchIndex) in matchHistory.get(getUuidByTask(task)!)"
                       :key="matchIndex"
                       style="
                         background: white;
@@ -242,6 +243,7 @@ import { StorageOptimizer, type StorageUsage } from '../utils/StorageOptimizer';
 import type {
   TournamentType,
   Participant,
+  ParticipantUUID,
   ActiveMatch,
   MatchHistoryEntry,
 } from '../types/tournament';
@@ -257,8 +259,13 @@ const tournamentType = ref<TournamentType>('single');
 const taskNameColumn = ref<string>('');
 const selectedSecondaryFields = ref<string[]>([]);
 const tasks = ref<Participant[]>([]);
-const matchHistory = ref<Map<Participant, MatchHistoryEntry[]>>(new Map());
+const matchHistory = ref<Map<ParticipantUUID, MatchHistoryEntry[]>>(new Map());  // Now uses UUID as key
 const expandedTaskHistory = ref<Participant | null>(null);
+
+// UUID mapping for participants
+const taskUuidMap = ref<Map<ParticipantUUID, Participant>>(new Map());  // UUID -> original task
+const taskToUuidMap = ref<Map<Participant, ParticipantUUID>>(new Map());  // original task -> UUID
+let nextTaskId = 0;
 
 // Bracket storage state
 const savedBrackets = ref<SavedBracket[]>([]);
@@ -270,8 +277,13 @@ const storageUsage = ref<StorageUsage | null>(null);
 // Current match state
 const currentMatch = ref<ActiveMatch | null>(null);
 const currentPair = computed(() => {
-  if (!currentMatch.value) return [null, null];
-  return [currentMatch.value.player1, currentMatch.value.player2];
+  if (!currentMatch.value || !currentMatch.value.player1 || !currentMatch.value.player2) {
+    return [null, null];
+  }
+  // Convert UUIDs to participant objects for display
+  const player1 = getTaskByUuid(currentMatch.value.player1);
+  const player2 = getTaskByUuid(currentMatch.value.player2);
+  return [player1, player2];
 });
 
 // Tournament progress
@@ -304,13 +316,62 @@ defineExpose({
 // Final results
 const finalRankings = computed(() => {
   if (!tournament.value || !tournament.value.isComplete()) return [];
-  return tournament.value.getRankings();
+  const rankingUuids = tournament.value.getRankings();  // Returns UUIDs
+  console.log("rankingUuids", rankingUuids);
+  // Convert UUIDs back to participant objects for display
+  return rankingUuids.map(uuid => getTaskByUuid(uuid)).filter(Boolean);
 });
 
 // Storage warning
 const showStorageWarning = computed(() => {
   return !!(storageUsage.value && storageUsage.value.usagePercent > 80);
 });
+
+// UUID management functions
+function generateTaskUuid(): ParticipantUUID {
+  return `task_${nextTaskId++}` as ParticipantUUID;
+}
+
+function createTaskUuidMapping(taskList: Participant[], existingUuids?: ParticipantUUID[]) {
+  // Clear existing mappings
+  taskUuidMap.value.clear();
+  taskToUuidMap.value.clear();
+  nextTaskId = 0;
+  
+  // Create UUID for each task
+  taskList.forEach((task, index) => {
+    let uuid: ParticipantUUID;
+    
+    if (existingUuids && existingUuids[index]) {
+      // Use existing UUID from saved state
+      uuid = existingUuids[index];
+      // Update nextTaskId to avoid conflicts
+      const idMatch = uuid.match(/^task_(\d+)$/);
+      if (idMatch && idMatch[1]) {
+        const idNumber = parseInt(idMatch[1], 10);
+        nextTaskId = Math.max(nextTaskId, idNumber + 1);
+      }
+    } else {
+      // Generate new UUID
+      uuid = generateTaskUuid();
+    }
+    
+    taskUuidMap.value.set(uuid, task);
+    taskToUuidMap.value.set(task, uuid);
+  });
+}
+
+function getTaskByUuid(uuid: ParticipantUUID): Participant {
+  const task = taskUuidMap.value.get(uuid);
+  if (!task) {
+    throw new Error(`No task found for UUID: ${uuid}`);
+  }
+  return task;
+}
+
+function getUuidByTask(task: Participant): ParticipantUUID | null {
+  return taskToUuidMap.value.get(task) || null;
+}
 
 function handleStartTournament(setupData: any) {
   // Extract tournament data from setup
@@ -320,16 +381,22 @@ function handleStartTournament(setupData: any) {
   selectedSecondaryFields.value = setupData.selectedSecondaryFields || [];
   tasks.value = setupData.csvData || [];
 
-  // Create new tournament
-  tournament.value = new Tournament(tournamentType.value, tasks.value, {
+  // Create UUID mapping for all tasks
+  createTaskUuidMapping(tasks.value);
+
+  // Get UUIDs for tournament creation
+  const taskUuids = tasks.value.map(task => getUuidByTask(task)!);
+
+  // Create new tournament with UUIDs instead of raw tasks
+  tournament.value = new Tournament(tournamentType.value, taskUuids, {
     taskNameColumn: taskNameColumn.value,
     seedingMethod: setupData.seedingMethod || 'order',
   });
 
-  // Initialize match history for all tasks
+  // Initialize match history using UUIDs as keys
   matchHistory.value = new Map();
-  tasks.value.forEach(task => {
-    matchHistory.value.set(task, []);
+  taskUuids.forEach(uuid => {
+    matchHistory.value.set(uuid, []);
   });
 
   // Start tournament flow
@@ -354,17 +421,22 @@ function handleStartTournament(setupData: any) {
 function chooseWinner(winnerIndex: number) {
   if (!tournament.value || !currentMatch.value) return;
 
-  // Convert index to actual participant
-  const winner =
+  // Convert index to actual UUID (player1 and player2 are now UUIDs)
+  const winnerUuid =
     winnerIndex === 0 ? currentMatch.value.player1 : currentMatch.value.player2;
-  const loser =
+  const loserUuid =
     winnerIndex === 0 ? currentMatch.value.player2 : currentMatch.value.player1;
-  if (!winner || !loser) return;
+  if (!winnerUuid || !loserUuid) return;
 
-  // Record match history
+  // Get actual participant objects for display
+  const winnerTask = getTaskByUuid(winnerUuid);
+  const loserTask = getTaskByUuid(loserUuid);
+  if (!winnerTask || !loserTask) return;
+
+  // Record match history using UUIDs as keys and storing opponent's original task for display
   const matchRecord: MatchHistoryEntry = {
     round: currentMatch.value.round,
-    opponent: loser,
+    opponent: loserTask,  // Store original task for display
     result: 'W',
     matchNumber: tournament.value.getCurrentMatchNumber(),
     bracket: currentMatch.value.bracket || 'main',
@@ -372,28 +444,28 @@ function chooseWinner(winnerIndex: number) {
 
   const loserRecord: MatchHistoryEntry = {
     round: currentMatch.value.round,
-    opponent: winner,
+    opponent: winnerTask,  // Store original task for display
     result: 'L',
     matchNumber: tournament.value.getCurrentMatchNumber(),
     bracket: currentMatch.value.bracket || 'main',
   };
 
-  if (matchHistory.value.has(winner)) {
-    matchHistory.value.get(winner)!.push(matchRecord);
+  if (matchHistory.value.has(winnerUuid)) {
+    matchHistory.value.get(winnerUuid)!.push(matchRecord);
   }
-  if (matchHistory.value.has(loser)) {
-    matchHistory.value.get(loser)!.push(loserRecord);
+  if (matchHistory.value.has(loserUuid)) {
+    matchHistory.value.get(loserUuid)!.push(loserRecord);
   }
 
-  // Report the result
-  tournament.value.reportResult(currentMatch.value, winner);
+  // Report the result (pass winner UUID)
+  tournament.value.reportResult(currentMatch.value, winnerUuid);
 
   // Check if tournament is complete
   if (tournament.value.isComplete()) {
     currentPhase.value = 'results';
     currentMatch.value = null;
-    // Build match history from completed matches
-    buildMatchHistoryFromTournament();
+    // Don't rebuild match history - we already have the correct data from active play
+    // buildMatchHistoryFromTournament() should only be used when loading saved tournaments
     // Save final bracket state
     try {
       saveBracket();
@@ -442,44 +514,32 @@ function toggleTaskHistory(task: Participant) {
 function buildMatchHistoryFromTournament() {
   if (!tournament.value) return;
 
-  // Reset match history - use finalRankings objects as keys since that's what the UI displays
+  // Reset match history using UUIDs as keys
   matchHistory.value = new Map();
-  const rankings = tournament.value.getRankings();
-  rankings.forEach(task => {
-    matchHistory.value.set(task, []);
+  const rankingUuids = tournament.value.getRankings();  // Now returns UUIDs
+  rankingUuids.forEach(uuid => {
+    matchHistory.value.set(uuid, []);
   });
 
-  // Use the Tournament class's matches getter which already filters and processes matches correctly
+  // Use the Tournament class's matches getter which already filters and processed matches correctly
   const completedMatches = tournament.value.matches;
   
   completedMatches.forEach((match: any, index: number) => {
-    const matchWinner = match.winner;
-    const matchLoser = match.loser;
+    const winnerUuid = match.winner;  // Now UUIDs
+    const loserUuid = match.loser;    // Now UUIDs
     
-    if (!matchWinner || !matchLoser) return;
+    if (!winnerUuid || !loserUuid) return;
 
-    // Find the actual task objects from rankings that match the winner/loser
-    // This is needed because the match winner/loser might not have the same object identity
-    const winner = rankings.find(task => 
-      task === matchWinner || 
-      (task.name === matchWinner.name) ||
-      (task.ID === matchWinner.ID) ||
-      JSON.stringify(task) === JSON.stringify(matchWinner)
-    );
+    // Get original task objects for display
+    const winnerTask = getTaskByUuid(winnerUuid);
+    const loserTask = getTaskByUuid(loserUuid);
     
-    const loser = rankings.find(task => 
-      task === matchLoser || 
-      (task.name === matchLoser.name) ||
-      (task.ID === matchLoser.ID) ||
-      JSON.stringify(task) === JSON.stringify(matchLoser)
-    );
-    
-    if (!winner || !loser) return;
+    if (!winnerTask || !loserTask) return;
 
     // Add win record for winner
     const winRecord: MatchHistoryEntry = {
       round: match.round || 1,
-      opponent: loser,
+      opponent: loserTask,  // Store original task for display
       result: 'W',
       matchNumber: index + 1,
       bracket: 'main',
@@ -488,17 +548,17 @@ function buildMatchHistoryFromTournament() {
     // Add loss record for loser
     const lossRecord: MatchHistoryEntry = {
       round: match.round || 1,
-      opponent: winner,
+      opponent: winnerTask,  // Store original task for display
       result: 'L',
       matchNumber: index + 1,
       bracket: 'main',
     };
 
-    if (matchHistory.value.has(winner)) {
-      matchHistory.value.get(winner)!.push(winRecord);
+    if (matchHistory.value.has(winnerUuid)) {
+      matchHistory.value.get(winnerUuid)!.push(winRecord);
     }
-    if (matchHistory.value.has(loser)) {
-      matchHistory.value.get(loser)!.push(lossRecord);
+    if (matchHistory.value.has(loserUuid)) {
+      matchHistory.value.get(loserUuid)!.push(lossRecord);
     }
   });
 }
@@ -565,6 +625,11 @@ function restartBracketology() {
   currentBracketId.value = null;
   loadedFromURL.value = false;
   showAutoSaveNotice.value = false;
+  
+  // Clear UUID mappings
+  taskUuidMap.value.clear();
+  taskToUuidMap.value.clear();
+  nextTaskId = 0;
 }
 
 // Bracket management functions
@@ -590,7 +655,19 @@ function loadBracket(bracketId: string) {
     selectedSecondaryFields.value = state.selectedSecondaryFields || [];
     tasks.value = state.tasks || [];
     currentMatch.value = state.currentMatch;
-    matchHistory.value = state.matchHistory || new Map();
+    
+    // Rebuild UUID mappings using saved UUIDs (if available)
+    createTaskUuidMapping(tasks.value, state.csvDataUUID);
+    
+    // Restore matchHistory - ensure it's a proper Map with UUID keys
+    if (state.matchHistory && state.matchHistory instanceof Map) {
+      matchHistory.value = state.matchHistory;
+    } else if (state.matchHistory) {
+      // Convert object back to Map if it was serialized
+      matchHistory.value = new Map(Object.entries(state.matchHistory));
+    } else {
+      matchHistory.value = new Map();
+    }
     currentBracketId.value = bracketId;
 
     // Tournament instance already restored by deserializeBracket
@@ -626,10 +703,14 @@ function loadBracket(bracketId: string) {
 
 function saveBracket() {
   try {
+    // Extract UUID array from the mapping
+    const csvDataUUID = tasks.value.map(task => getUuidByTask(task)!);
+    
     const bracketData = BracketStorage.serializeBracket({
       tournamentName: tournamentName.value,
       currentPhase: currentPhase.value,
       csvData: tasks.value,
+      csvDataUUID: csvDataUUID,
       csvHeaders: selectedSecondaryFields.value,
       taskNameColumn: taskNameColumn.value,
       selectedSecondaryFields: selectedSecondaryFields.value,

@@ -9,6 +9,8 @@ export interface Task {
 
 export type Participant = Task;
 
+export type ParticipantUUID = string;
+
 export type TournamentType = 'single' | 'double';
 
 export type CurrentPhase = 'setup' | 'results' | 'matchups';
@@ -23,8 +25,8 @@ export interface TournamentOptions {
 }
 
 export interface ActiveMatch {
-  player1: Participant | null;
-  player2: Participant | null;
+  player1: ParticipantUUID | null;
+  player2: ParticipantUUID | null;
   round: number;
   matchInRound: number;
   bracket: string;

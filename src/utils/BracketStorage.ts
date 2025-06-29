@@ -5,7 +5,7 @@
 
 import { StorageOptimizer } from './StorageOptimizer';
 import { Tournament } from './TournamentRunner';
-import type { TournamentOptions } from '../types/tournament';
+import type { TournamentOptions, ParticipantUUID } from '../types/tournament';
 
 const STORAGE_KEY = 'bracketology_saved_brackets';
 
@@ -17,6 +17,7 @@ interface TournamentState {
   tournamentName: string;
   currentPhase: string;
   csvData: Participant[];
+  csvDataUUID: ParticipantUUID[]; // ParticipantUUIDs corresponding 1:1 with csvData (required)
   csvHeaders: string[];
   taskNameColumn: string;
   selectedSecondaryFields: string[];
@@ -25,7 +26,7 @@ interface TournamentState {
   tasks: Participant[];
   tournament: InstanceType<typeof Tournament> | null;
   currentMatch: any;
-  matchHistory: Map<Participant, any[]>;
+  matchHistory: Map<ParticipantUUID, any[]>; // Map<ParticipantUUID, MatchHistoryEntry[]>
 }
 
 export interface BracketData {
@@ -34,6 +35,7 @@ export interface BracketData {
   name: string;
   status: string;
   csvData: Participant[];
+  csvDataUUID: ParticipantUUID[]; // ParticipantUUIDs corresponding 1:1 with csvData
   csvHeaders: string[];
   taskNameColumn: string;
   selectedSecondaryFields: string[];
@@ -161,10 +163,11 @@ export class BracketStorage {
 
   static serializeBracket(tournamentState: TournamentState): BracketData {
     return {
-      version: '2.0',
+      version: '3.0', // Increment version for UUID support
       name: tournamentState.tournamentName,
       status: tournamentState.currentPhase,
       csvData: tournamentState.csvData,
+      csvDataUUID: tournamentState.csvDataUUID,
       csvHeaders: tournamentState.csvHeaders,
       taskNameColumn: tournamentState.taskNameColumn,
       selectedSecondaryFields: tournamentState.selectedSecondaryFields,
@@ -177,7 +180,7 @@ export class BracketStorage {
           : tournamentState.tournament
         : null,
       currentMatch: tournamentState.currentMatch,
-      matchHistory: [], // Match history is handled internally by tournament-organizer
+      matchHistory: Array.from(tournamentState.matchHistory.entries()), // Convert Map to array for serialization
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),
     };
@@ -189,6 +192,19 @@ export class BracketStorage {
   ): any {
     const state: any = { ...bracketData };
 
+    // Ensure csvDataUUID exists (required in new format)
+    if (!state.csvDataUUID) {
+      throw new Error('Invalid bracket data: csvDataUUID is required');
+    }
+
+    // Restore matchHistory as Map
+    if (Array.isArray(state.matchHistory)) {
+      // Convert array format back to Map
+      state.matchHistory = new Map(state.matchHistory);
+    } else {
+      state.matchHistory = new Map();
+    }
+
     // Restore tournament using the new API
     if (state.tournament) {
       try {
@@ -198,20 +214,11 @@ export class BracketStorage {
         });
         state.tasks = bracketData.csvData; // Tasks are just the participants
         state.currentMatch = null; // Current match is managed by tournament-organizer
-        state.matchHistory = new Map(); // Match history is managed internally
       } catch (error) {
         console.error('Error restoring tournament from stored state:', error);
-        console.warn('Creating fresh tournament...');
-
-        // Fallback to creating a new tournament with the same participants
-        state.tournament = new Tournament(
-          bracketData.tournamentType === 'double' ? 'double' : 'single',
-          bracketData.csvData,
-          {
-            ...options,
-            taskNameColumn: bracketData.taskNameColumn,
-          }
-        );
+        console.warn('Tournament restoration failed. Tournament will need to be recreated.');
+        // Don't create a fallback tournament here - let TournamentManager handle it
+        state.tournament = null;
         state.tasks = bracketData.csvData;
         state.currentMatch = null;
         state.matchHistory = new Map();

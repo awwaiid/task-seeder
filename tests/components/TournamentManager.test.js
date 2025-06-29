@@ -12,18 +12,18 @@ vi.mock('papaparse', () => ({
 
 // Mock Tournament and related utilities
 vi.mock('../../src/utils/TournamentRunner.js', () => ({
-  Tournament: vi.fn().mockImplementation(() => {
+  Tournament: vi.fn().mockImplementation((type, entrants) => {
     let currentMatchNum = 1;
-    let isCompleted = false;
+    let isCompleted = entrants && entrants.length <= 1; // Single player tournament is immediately complete
     let matches = [];
     return {
       getNextMatch: vi.fn(() => {
-        if (isCompleted) {
+        if (isCompleted || !entrants || entrants.length <= 1) {
           return null;
         }
         return {
-          player1: { 'Task Name': 'Task 1' },
-          player2: { 'Task Name': 'Task 2' },
+          player1: 'task_0', // Now returns UUID strings
+          player2: 'task_1', // Now returns UUID strings
           round: 1,
           matchInRound: 1,
           bracket: 'main',
@@ -33,7 +33,7 @@ vi.mock('../../src/utils/TournamentRunner.js', () => ({
       getTotalMatches: vi.fn().mockReturnValue(3),
       getTotalRounds: vi.fn().mockReturnValue(2),
       getMatchesInRound: vi.fn().mockReturnValue(2),
-      isComplete: vi.fn(() => isCompleted),
+      isComplete: vi.fn(() => isCompleted || (entrants && entrants.length <= 1)),
       getRankings: vi.fn().mockReturnValue([]),
       get matches() {
         return matches;
@@ -106,6 +106,23 @@ describe('TournamentManager Integration Tests', () => {
           },
         },
       },
+    });
+
+    // Mock UUID mapping functions
+    const originalCreateTaskUuidMapping = wrapper.vm.createTaskUuidMapping;
+    wrapper.vm.createTaskUuidMapping = vi.fn((taskList, existingUuids) => {
+      // Call original function to set up basic state
+      originalCreateTaskUuidMapping.call(wrapper.vm, taskList, existingUuids);
+      
+      // Override the taskUuidMap with our mock data
+      wrapper.vm.taskUuidMap.clear();
+      wrapper.vm.taskToUuidMap.clear();
+      
+      taskList.forEach((task, index) => {
+        const uuid = `task_${index}`;
+        wrapper.vm.taskUuidMap.set(uuid, task);
+        wrapper.vm.taskToUuidMap.set(task, uuid);
+      });
     });
   });
 
