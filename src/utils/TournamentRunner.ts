@@ -512,7 +512,7 @@ export class Tournament {
       originalEntrantsCount: this.originalEntrants?.length || 0
     });
     
-    if (!this.tournament?.players || !this.tournament?.matches) {
+    if (!this.tournament?.players || !this.tournament?.matches || this.tournament.players.length === 0) {
       console.warn('No tournament data available for tournament-organizer rankings');
       return this.originalEntrants;
     }

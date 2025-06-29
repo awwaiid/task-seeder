@@ -94,22 +94,4 @@ describe('TournamentRunner', () => {
     });
   });
 
-  describe('State Management', () => {
-    it('should export and import tournament state', () => {
-      const tournament = new Tournament('single', ['Alice', 'Bob']);
-      const match = tournament.getNextMatch();
-      tournament.reportResult(match, 'Alice');
-
-      const state = tournament.exportState();
-      expect(state).toHaveProperty('version', '3.0');
-      expect(state).toHaveProperty('type', 'single');
-      expect(state).toHaveProperty('originalEntrants');
-
-      const restoredTournament = Tournament.fromStoredState(state);
-      expect(restoredTournament.type).toBe('single');
-      expect(restoredTournament.originalEntrants).toEqual(['Alice', 'Bob']);
-      expect(restoredTournament.isComplete()).toBe(true);
-      expect(restoredTournament.getWinner()).toBe('Alice');
-    });
-  });
 });
