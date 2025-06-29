@@ -38,8 +38,11 @@
             <div style="font-size: 12px; color: #666">
               {{ bracket.status === 'results' ? 'Completed' : 'In Progress' }} •
               {{ bracket.csvData?.length || 0 }} tasks •
-              {{ bracket.tournamentType === 'double' ? 'Double' : 'Single' }}
-              elimination •
+              {{ 
+                bracket.tournamentType === 'double' ? 'Double elimination' : 
+                bracket.tournamentType === 'quicksort' ? 'QuickSort ranking' : 
+                'Single elimination' 
+              }} •
               {{ formatDate(bracket.lastModified) }}
             </div>
           </div>
@@ -383,6 +386,21 @@
             ><br />
             <small style="color: #666; margin-top: 4px; display: block"
               >Tasks get a second chance</small
+            >
+          </div>
+          <div
+            class="option"
+            :class="{ selected: tournamentType === 'quicksort' }"
+            style="cursor: pointer"
+            @click="tournamentType = 'quicksort'"
+          >
+            <strong>QuickSort Ranking</strong><br />
+            <small
+              >{{ calculateTotalMatchesForType('quicksort') }} matches •
+              Efficient</small
+            ><br />
+            <small style="color: #666; margin-top: 4px; display: block"
+              >Algorithm-based comparisons</small
             >
           </div>
         </div>
@@ -822,6 +840,9 @@ const calculateTotalMatchesForType = (type: string) => {
   if (type === 'double') {
     return participantCount * 2 - 1; // Double elimination
   }
+  if (type === 'quicksort') {
+    return Math.ceil(participantCount * Math.log2(participantCount)); // QuickSort estimation
+  }
   return Math.max(0, participantCount - 1); // Single elimination
 };
 
@@ -868,7 +889,7 @@ function handleStartTournament() {
 <style scoped>
 .tournament-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 

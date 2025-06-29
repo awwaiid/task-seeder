@@ -29,7 +29,8 @@ function showAbout(): void {
 
 <template>
   <div id="app">
-    <header class="app-header">
+    <div class="app-container">
+      <header class="app-header">
       <div class="header-left clickable-header" @click="goHome">
         <img src="/logo.png" alt="TaskSeeder" class="logo" />
         <div class="header-text">
@@ -64,9 +65,16 @@ function showAbout(): void {
       ref="tournamentManagerRef"
     />
     <About v-if="currentView === 'about'" @go-home="goHome" />
+    </div>
   </div>
 </template>
 
 <style>
 @import './assets/styles.css';
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
 </style>

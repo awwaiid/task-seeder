@@ -1,6 +1,7 @@
 <template>
-  <!-- Setup Phase -->
-  <TournamentSetup
+  <div class="tournament-manager">
+    <!-- Setup Phase -->
+    <TournamentSetup
     v-if="currentPhase === 'setup'"
     :saved-brackets="savedBrackets"
     :loaded-from-url="loadedFromURL"
@@ -229,6 +230,7 @@
       </button>
     </div>
   </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -236,7 +238,7 @@ import { ref, computed, onMounted } from 'vue';
 import TournamentProgress from './TournamentProgress.vue';
 import TournamentSetup from './TournamentSetup.vue';
 import TaskMatchup from './TaskMatchup.vue';
-import { Tournament } from '../utils/TournamentRunner';
+import { Tournament, QuickSortTournament, createTournament } from '../utils/TournamentRunner';
 import { BracketStorage, type SavedBracket } from '../utils/BracketStorage';
 import { URLBracketSharing } from '../utils/URLBracketSharing';
 import { StorageOptimizer, type StorageUsage } from '../utils/StorageOptimizer';
@@ -253,7 +255,7 @@ type CurrentPhase = 'setup' | 'matchups' | 'results';
 const currentPhase = ref<CurrentPhase>('setup');
 
 // Tournament state
-const tournament = ref<Tournament | null>(null);
+const tournament = ref<Tournament | QuickSortTournament | null>(null);
 const tournamentName = ref<string>('');
 const tournamentType = ref<TournamentType>('single');
 const taskNameColumn = ref<string>('');
@@ -388,7 +390,7 @@ function handleStartTournament(setupData: any) {
   const taskUuids = tasks.value.map(task => getUuidByTask(task)!);
 
   // Create new tournament with UUIDs instead of raw tasks
-  tournament.value = new Tournament(tournamentType.value, taskUuids, {
+  tournament.value = createTournament(tournamentType.value, taskUuids, {
     taskNameColumn: taskNameColumn.value,
     seedingMethod: setupData.seedingMethod || 'order',
   });

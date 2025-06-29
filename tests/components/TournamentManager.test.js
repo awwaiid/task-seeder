@@ -11,8 +11,8 @@ vi.mock('papaparse', () => ({
 }));
 
 // Mock Tournament and related utilities
-vi.mock('../../src/utils/TournamentRunner.js', () => ({
-  Tournament: vi.fn().mockImplementation((type, entrants) => {
+vi.mock('../../src/utils/TournamentRunner.js', () => {
+  const Tournament = vi.fn().mockImplementation((type, entrants) => {
     let currentMatchNum = 1;
     let isCompleted = entrants && entrants.length <= 1; // Single player tournament is immediately complete
     let matches = [];
@@ -53,8 +53,15 @@ vi.mock('../../src/utils/TournamentRunner.js', () => ({
         }
       }),
     };
-  }),
-}));
+  });
+
+  return {
+    Tournament,
+    createTournament: vi.fn((type, entrants, options = {}) => {
+      return new Tournament(type, entrants, options);
+    }),
+  };
+});
 
 vi.mock('../../src/utils/BracketStorage.js', () => ({
   BracketStorage: {

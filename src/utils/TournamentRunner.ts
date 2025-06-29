@@ -12,6 +12,19 @@ import type {
 
 export type { TournamentType, TournamentOptions, ActiveMatch };
 
+// Factory function for creating tournaments
+export function createTournament(
+  type: TournamentType,
+  entrants: ParticipantUUID[],
+  options: TournamentOptions = {}
+): Tournament | QuickSortTournament {
+  if (type === 'quicksort') {
+    return new QuickSortTournament(entrants, options);
+  } else {
+    return new Tournament(type, entrants, options);
+  }
+}
+
 export class Tournament {
   private manager: TournamentOrganizer;
   private tournament: any;
@@ -324,7 +337,7 @@ export class Tournament {
   static fromStoredState(
     state: any,
     options: TournamentOptions = {}
-  ): Tournament {
+  ): Tournament | QuickSortTournament {
     console.log('fromStoredState called with state:', {
       version: state.version,
       type: state.type,
@@ -333,6 +346,11 @@ export class Tournament {
     });
     
     if (state.version === '3.0') {
+      // Handle quicksort tournaments
+      if (state.type === 'quicksort') {
+        return QuickSortTournament.fromStoredState(state, options);
+      }
+      
       // New format using tournament-organizer
       const tournament = new Tournament(state.type, state.originalEntrants, {
         ...options,
@@ -716,5 +734,349 @@ export class Tournament {
       'Migrated legacy tournament to new format. Tournament will restart.'
     );
     return tournament;
+  }
+}
+
+export class QuickSortTournament {
+  type: string = 'quicksort';
+  originalEntrants: ParticipantUUID[];
+  taskNameColumn: string | undefined;
+  
+  private participants: ParticipantUUID[];
+  private comparisons: Array<{
+    pivot: ParticipantUUID;
+    candidates: ParticipantUUID[];
+    lessThan: ParticipantUUID[];
+    greaterThan: ParticipantUUID[];
+    currentComparison?: {
+      pivot: ParticipantUUID;
+      candidate: ParticipantUUID;
+    };
+  }>;
+  private completedComparisons: number = 0;
+  private totalComparisons: number = 0;
+  private comparisonResults: Map<string, ParticipantUUID> = new Map();
+
+  constructor(
+    entrants: ParticipantUUID[],
+    options: TournamentOptions = {}
+  ) {
+    if (!entrants || entrants.length < 1) {
+      throw new Error('Tournament requires at least 1 entrant');
+    }
+
+    this.taskNameColumn = options.taskNameColumn;
+    this.originalEntrants = [...entrants];
+    
+    // Apply seeding if specified
+    const seedingMethod = options.seedingMethod || 'order';
+    this.participants = this._applySeedingMethod(entrants, seedingMethod);
+    
+    // Handle single participant
+    if (this.participants.length === 1) {
+      this.comparisons = [];
+      return;
+    }
+
+    // Initialize quicksort state
+    if (this.participants.length > 0) {
+      const { pivot, candidates } = this._selectMiddlePivot(this.participants);
+      this.comparisons = [{
+        pivot,
+        candidates,
+        lessThan: [],
+        greaterThan: []
+      }];
+    } else {
+      this.comparisons = [];
+    }
+
+    // Estimate total comparisons (roughly n log n)
+    this.totalComparisons = Math.ceil(this.participants.length * Math.log2(this.participants.length));
+  }
+
+  getNextMatch(): ActiveMatch | null {
+    if (this.isComplete()) {
+      return null;
+    }
+
+    // Find the next comparison to make
+    for (let i = 0; i < this.comparisons.length; i++) {
+      const partition = this.comparisons[i];
+      
+      if (partition && partition.candidates.length > 0) {
+        const candidate = partition.candidates[0];
+        if (candidate) {
+          partition.currentComparison = {
+            pivot: partition.pivot,
+            candidate: candidate
+          };
+
+          return {
+            player1: partition.pivot,
+            player2: candidate,
+            round: i + 1,
+            matchInRound: partition.lessThan.length + partition.greaterThan.length + 1,
+            bracket: 'quicksort',
+            originalMatch: { partitionIndex: i }
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  reportResult(match: ActiveMatch, winnerUuid: ParticipantUUID): void {
+    const partitionIndex = match.originalMatch.partitionIndex;
+    const partition = this.comparisons[partitionIndex];
+    
+    if (!partition || !partition.currentComparison) {
+      throw new Error('No active comparison found');
+    }
+
+    const { pivot, candidate } = partition.currentComparison;
+    
+    // Remove candidate from candidates list
+    const candidateIndex = partition.candidates.indexOf(candidate);
+    if (candidateIndex !== -1) {
+      partition.candidates.splice(candidateIndex, 1);
+    }
+
+    // Sort based on winner: if pivot wins, candidate goes to lessThan (pivot is "greater")
+    // This ensures consistent ranking where winner > loser
+    if (winnerUuid === pivot) {
+      partition.lessThan.push(candidate);
+    } else {
+      partition.greaterThan.push(candidate);
+    }
+
+    // Store the comparison result
+    const comparisonKey = this._getComparisonKey(pivot, candidate);
+    this.comparisonResults.set(comparisonKey, winnerUuid);
+
+    delete partition.currentComparison;
+    this.completedComparisons++;
+
+    // Check if this partition is complete
+    if (partition.candidates.length === 0) {
+      this._processCompletedPartition(partitionIndex);
+    }
+  }
+
+  private _processCompletedPartition(partitionIndex: number): void {
+    const partition = this.comparisons[partitionIndex];
+    
+    if (!partition) {
+      throw new Error('Partition not found');
+    }
+    
+    // Remove the completed partition
+    this.comparisons.splice(partitionIndex, 1);
+
+    // Create new partitions for groups that need further sorting
+    if (partition.greaterThan.length > 1) {
+      const { pivot, candidates } = this._selectMiddlePivot(partition.greaterThan);
+      this.comparisons.push({
+        pivot,
+        candidates,
+        lessThan: [],
+        greaterThan: []
+      });
+    }
+
+    if (partition.lessThan.length > 1) {
+      const { pivot, candidates } = this._selectMiddlePivot(partition.lessThan);
+      this.comparisons.push({
+        pivot,
+        candidates,
+        lessThan: [],
+        greaterThan: []
+      });
+    }
+  }
+
+  isComplete(): boolean {
+    return this.comparisons.length === 0;
+  }
+
+  getRankings(): ParticipantUUID[] {
+    if (!this.isComplete()) {
+      return this.originalEntrants;
+    }
+    
+    // Reconstruct the final ranking by applying quicksort logic to our participants
+    // based on the comparisons we've collected
+    return this._buildFinalRanking(this.participants);
+  }
+
+  private _buildFinalRanking(items: ParticipantUUID[]): ParticipantUUID[] {
+    if (items.length <= 1) {
+      return [...items];
+    }
+
+    // Use stored comparison results to partition the items
+    const { pivot, candidates } = this._selectMiddlePivot(items);
+    const greaterThan: ParticipantUUID[] = [];
+    const lessThan: ParticipantUUID[] = [];
+
+    // Partition candidates based on how they compared to the pivot
+    for (const candidate of candidates) {
+      if (this._didWinAgainst(candidate, pivot)) {
+        greaterThan.push(candidate);
+      } else {
+        lessThan.push(candidate);
+      }
+    }
+
+    // Recursively sort and combine: winners + pivot + losers
+    return [
+      ...this._buildFinalRanking(greaterThan),
+      pivot,
+      ...this._buildFinalRanking(lessThan)
+    ];
+  }
+
+  private _getComparisonKey(player1: ParticipantUUID, player2: ParticipantUUID): string {
+    // Create a consistent key regardless of order
+    return [player1, player2].sort().join(':');
+  }
+
+  private _didWinAgainst(player1: ParticipantUUID, player2: ParticipantUUID): boolean {
+    const key = this._getComparisonKey(player1, player2);
+    const winner = this.comparisonResults.get(key);
+    return winner === player1;
+  }
+
+  getWinner(): ParticipantUUID | null {
+    if (!this.isComplete()) {
+      return null;
+    }
+    
+    const rankings = this.getRankings();
+    return rankings.length > 0 ? rankings[0] || null : null;
+  }
+
+  getCurrentMatchNumber(): number {
+    return this.completedComparisons + 1;
+  }
+
+  getTotalMatches(): number {
+    return this.totalComparisons;
+  }
+
+  getTotalRounds(): number {
+    // In quicksort, rounds are more like partition depth
+    return Math.ceil(Math.log2(this.participants.length));
+  }
+
+  getMatchesInRound(round: number): number {
+    // Estimate matches per "round" (partition level)
+    return Math.ceil(this.participants.length / Math.pow(2, round - 1));
+  }
+
+  get remainingParticipants(): ParticipantUUID[] {
+    // Return participants that haven't been fully sorted yet
+    const inProgress = this.comparisons.flatMap(p => [p.pivot, ...p.candidates, ...p.lessThan, ...p.greaterThan]);
+    return [...new Set(inProgress)];
+  }
+
+  get matches(): any[] {
+    // Return completed comparisons as matches
+    const completedMatches: any[] = [];
+    let matchId = 1;
+    
+    // This is simplified - in a real implementation you'd track all historical matches
+    for (let i = 0; i < this.completedComparisons; i++) {
+      completedMatches.push({
+        id: matchId++,
+        active: false,
+        round: Math.floor(i / 4) + 1, // Rough round assignment
+        player1: null, // Would need to track historical data
+        player2: null,
+      });
+    }
+    
+    return completedMatches;
+  }
+
+  get pendingMatches(): any[] {
+    const nextMatch = this.getNextMatch();
+    return nextMatch ? [nextMatch] : [];
+  }
+
+  findParticipantByPlayerId(playerId: ParticipantUUID): ParticipantUUID {
+    return playerId;
+  }
+
+  exportState(): any {
+    return {
+      version: '3.0',
+      type: this.type,
+      originalEntrants: this.originalEntrants,
+      taskNameColumn: this.taskNameColumn,
+      quicksortState: {
+        participants: this.participants,
+        comparisons: this.comparisons,
+        completedComparisons: this.completedComparisons,
+        totalComparisons: this.totalComparisons,
+        comparisonResults: Array.from(this.comparisonResults.entries())
+      }
+    };
+  }
+
+  static fromStoredState(state: any, options: TournamentOptions = {}): QuickSortTournament {
+    const tournament = new QuickSortTournament(state.originalEntrants, {
+      ...options,
+      taskNameColumn: state.taskNameColumn,
+    });
+
+    if (state.quicksortState) {
+      tournament.participants = state.quicksortState.participants || [];
+      tournament.comparisons = state.quicksortState.comparisons || [];
+      tournament.completedComparisons = state.quicksortState.completedComparisons || 0;
+      tournament.totalComparisons = state.quicksortState.totalComparisons || 0;
+      
+      // Restore comparison results
+      if (state.quicksortState.comparisonResults) {
+        tournament.comparisonResults = new Map(state.quicksortState.comparisonResults);
+      }
+    }
+
+    return tournament;
+  }
+
+  private _selectMiddlePivot(items: ParticipantUUID[]): { pivot: ParticipantUUID; candidates: ParticipantUUID[] } {
+    if (items.length === 0) {
+      throw new Error('Cannot select pivot from empty array');
+    }
+    const middleIndex = Math.floor(items.length / 2);
+    const pivot = items[middleIndex]!;
+    const candidates = [...items.slice(0, middleIndex), ...items.slice(middleIndex + 1)];
+    return { pivot, candidates };
+  }
+
+  private _applySeedingMethod(
+    participants: ParticipantUUID[],
+    seedingMethod: SeedingMethod
+  ): ParticipantUUID[] {
+    switch (seedingMethod) {
+      case 'random': {
+        const shuffled = [...participants];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const temp = shuffled[i];
+          const tempJ = shuffled[j];
+          if (temp && tempJ) {
+            shuffled[i] = tempJ;
+            shuffled[j] = temp;
+          }
+        }
+        return shuffled;
+      }
+      case 'order':
+      default:
+        return [...participants];
+    }
   }
 }
