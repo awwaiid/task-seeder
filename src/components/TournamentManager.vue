@@ -2,234 +2,242 @@
   <div class="tournament-manager">
     <!-- Setup Phase -->
     <TournamentSetup
-    v-if="currentPhase === 'setup'"
-    :saved-brackets="savedBrackets"
-    :loaded-from-url="loadedFromURL"
-    :show-auto-save-notice="showAutoSaveNotice"
-    :show-storage-warning="showStorageWarning"
-    :storage-usage="storageUsage"
-    :tournament-setup-progress="''"
-    @load-bracket="loadBracket"
-    @delete-bracket="deleteBracket"
-    @share-bracket="shareBracket"
-    @save-locally="saveCurrentBracketLocally"
-    @dismiss-url-notice="dismissURLNotice"
-    @dismiss-auto-save="showAutoSaveNotice = false"
-    @cleanup-storage="cleanupStorage"
-    @start-tournament="handleStartTournament"
-  />
-
-  <!-- Matchup Phase -->
-  <div v-if="currentPhase === 'matchups'" class="container">
-    <TournamentProgress
-      data-testid="tournament-progress"
-      :current-round="currentRound"
-      :current-matchup="currentMatchInRound"
-      :completed-matches="currentMatchNumber - 1"
-      :total-matches="totalMatches"
-      :tournament-name="tournamentName"
-      :task-count="tasks.length"
-      :current-round-match="currentMatchInRound"
-      :tournament-type="tournamentType"
-      :current-bracket-type="currentBracketType"
-      :total-rounds="totalRounds"
-      :current-round-matches="currentRoundMatches"
+      v-if="currentPhase === 'setup'"
+      :saved-brackets="savedBrackets"
+      :loaded-from-url="loadedFromURL"
+      :show-auto-save-notice="showAutoSaveNotice"
+      :show-storage-warning="showStorageWarning"
+      :storage-usage="storageUsage"
+      :tournament-setup-progress="''"
+      @load-bracket="loadBracket"
+      @delete-bracket="deleteBracket"
+      @share-bracket="shareBracket"
+      @save-locally="saveCurrentBracketLocally"
+      @dismiss-url-notice="dismissURLNotice"
+      @dismiss-auto-save="showAutoSaveNotice = false"
+      @cleanup-storage="cleanupStorage"
+      @start-tournament="handleStartTournament"
     />
 
-    <TaskMatchup
-      data-testid="task-matchup"
-      :task1="currentPair[0] || null"
-      :task2="currentPair[1] || null"
-      :task-name-column="taskNameColumn"
-      :selected-fields="selectedSecondaryFields"
-      @choose-winner="chooseWinner"
-    />
+    <!-- Matchup Phase -->
+    <div v-if="currentPhase === 'matchups'" class="container">
+      <TournamentProgress
+        data-testid="tournament-progress"
+        :current-round="currentRound"
+        :current-matchup="currentMatchInRound"
+        :completed-matches="currentMatchNumber - 1"
+        :total-matches="totalMatches"
+        :tournament-name="tournamentName"
+        :task-count="tasks.length"
+        :current-round-match="currentMatchInRound"
+        :tournament-type="tournamentType"
+        :current-bracket-type="currentBracketType"
+        :total-rounds="totalRounds"
+        :current-round-matches="currentRoundMatches"
+      />
 
-    <div style="text-align: center; margin-top: 20px">
-      <button
-        data-testid="restart-button"
-        class="accent"
-        @click="restartBracketology"
-      >
-        Home
-      </button>
+      <TaskMatchup
+        data-testid="task-matchup"
+        :task1="currentPair[0] || null"
+        :task2="currentPair[1] || null"
+        :task-name-column="taskNameColumn"
+        :selected-fields="selectedSecondaryFields"
+        @choose-winner="chooseWinner"
+      />
+
+      <div style="text-align: center; margin-top: 20px">
+        <button
+          data-testid="restart-button"
+          class="accent"
+          @click="restartBracketology"
+        >
+          Home
+        </button>
+      </div>
     </div>
-  </div>
 
-  <!-- Results Phase -->
-  <div v-if="currentPhase === 'results'" class="container">
-    <h2>Your Task Rankings - {{ tournamentName }}</h2>
-    <p>
-      Based on your choices, here are your tasks ranked from highest to lowest
-      priority:
-    </p>
+    <!-- Results Phase -->
+    <div v-if="currentPhase === 'results'" class="container">
+      <h2>Your Task Rankings - {{ tournamentName }}</h2>
+      <p>
+        Based on your choices, here are your tasks ranked from highest to lowest
+        priority:
+      </p>
 
-    <div class="results-table-container">
-      <table class="results-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Task</th>
-            <th v-for="field in selectedSecondaryFields" :key="field">
-              {{ field }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <template v-for="(task, index) in finalRankings" :key="index">
-            <tr
-              class="clickable-row"
-              :class="{ expanded: expandedTaskHistory === task }"
-              :title="
-                expandedTaskHistory === task
-                  ? 'Click to hide match history'
-                  : 'Click to view match history'
-              "
-              @click="toggleTaskHistory(task)"
-            >
-              <td>
-                <strong>{{ index + 1 }}</strong>
-              </td>
-              <td>
-                {{ getTaskTitle(task) }}
-                <span
-                  class="expand-indicator"
-                  :class="{ expanded: expandedTaskHistory === task }"
-                >
-                  {{ expandedTaskHistory === task ? '▼' : '▶' }}
-                </span>
-              </td>
-              <td v-for="field in selectedSecondaryFields" :key="field">
-                {{ task[field] || '-' }}
-              </td>
+      <div class="results-table-container">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Task</th>
+              <th v-for="field in selectedSecondaryFields" :key="field">
+                {{ field }}
+              </th>
             </tr>
-            <!-- Inline History Row -->
-            <tr v-if="expandedTaskHistory === task" class="history-row">
-              <td
-                :colspan="2 + selectedSecondaryFields.length"
-                style="padding: 0"
+          </thead>
+          <tbody>
+            <template v-for="(task, index) in finalRankings" :key="index">
+              <tr
+                class="clickable-row"
+                :class="{ expanded: expandedTaskHistory === task }"
+                :title="
+                  expandedTaskHistory === task
+                    ? 'Click to hide match history'
+                    : 'Click to view match history'
+                "
+                @click="toggleTaskHistory(task)"
               >
-                <div
-                  style="
-                    background: #f8f9fa;
-                    padding: 15px;
-                    border-left: 4px solid #3498db;
-                  "
+                <td>
+                  <strong>{{ index + 1 }}</strong>
+                </td>
+                <td>
+                  {{ getTaskTitle(task) }}
+                  <span
+                    class="expand-indicator"
+                    :class="{ expanded: expandedTaskHistory === task }"
+                  >
+                    {{ expandedTaskHistory === task ? '▼' : '▶' }}
+                  </span>
+                </td>
+                <td v-for="field in selectedSecondaryFields" :key="field">
+                  {{ task[field] || '-' }}
+                </td>
+              </tr>
+              <!-- Inline History Row -->
+              <tr v-if="expandedTaskHistory === task" class="history-row">
+                <td
+                  :colspan="2 + selectedSecondaryFields.length"
+                  style="padding: 0"
                 >
                   <div
                     style="
-                      display: flex;
-                      justify-content: space-between;
-                      align-items: center;
-                      margin-bottom: 10px;
-                    "
-                  >
-                    <h4 style="margin: 0; color: #2c3e50">
-                      Match History: {{ getTaskTitle(task) }}
-                    </h4>
-                    <button
-                      style="
-                        background: #e74c3c;
-                        color: white;
-                        border: none;
-                        padding: 3px 8px;
-                        border-radius: 3px;
-                        cursor: pointer;
-                        font-size: 12px;
-                      "
-                      @click="expandedTaskHistory = null"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div
-                    v-if="
-                      getUuidByTask(task) &&
-                      matchHistory.has(getUuidByTask(task)!) &&
-                      matchHistory.get(getUuidByTask(task)!)!.length > 0
+                      background: #f8f9fa;
+                      padding: 15px;
+                      border-left: 4px solid #3498db;
                     "
                   >
                     <div
-                      v-for="(match, matchIndex) in matchHistory.get(getUuidByTask(task)!)"
-                      :key="matchIndex"
                       style="
-                        background: white;
-                        margin-bottom: 6px;
-                        padding: 10px;
-                        border-radius: 4px;
-                        border-left: 3px solid #3498db;
-                        font-size: 14px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 10px;
                       "
                     >
-                      <div style="display: flex; align-items: center; gap: 8px">
-                        <span
-                          style="
-                            font-weight: bold;
-                            color: #2c3e50;
-                            min-width: 60px;
-                          "
-                          >Round {{ match.round }}:</span
-                        >
+                      <h4 style="margin: 0; color: #2c3e50">
+                        Match History: {{ getTaskTitle(task) }}
+                      </h4>
+                      <button
+                        style="
+                          background: #e74c3c;
+                          color: white;
+                          border: none;
+                          padding: 3px 8px;
+                          border-radius: 3px;
+                          cursor: pointer;
+                          font-size: 12px;
+                        "
+                        @click="expandedTaskHistory = null"
+                      >
+                        ✕
+                      </button>
+                    </div>
 
-                        <span
-                          v-if="match.result === 'BYE'"
-                          style="color: #7f8c8d; font-style: italic"
+                    <div
+                      v-if="
+                        getUuidByTask(task) &&
+                        matchHistory.has(getUuidByTask(task)!) &&
+                        matchHistory.get(getUuidByTask(task)!)!.length > 0
+                      "
+                    >
+                      <div
+                        v-for="(match, matchIndex) in matchHistory.get(
+                          getUuidByTask(task)!
+                        )"
+                        :key="matchIndex"
+                        style="
+                          background: white;
+                          margin-bottom: 6px;
+                          padding: 10px;
+                          border-radius: 4px;
+                          border-left: 3px solid #3498db;
+                          font-size: 14px;
+                        "
+                      >
+                        <div
+                          style="display: flex; align-items: center; gap: 8px"
                         >
-                          Received a bye (automatic advancement)
-                        </span>
+                          <span
+                            style="
+                              font-weight: bold;
+                              color: #2c3e50;
+                              min-width: 60px;
+                            "
+                            >Round {{ match.round }}:</span
+                          >
 
-                        <span
-                          v-else-if="match.result === 'W'"
-                          style="color: #27ae60"
-                        >
-                          <strong>WON</strong> vs
-                          {{ getTaskTitle(match.opponent) }}
-                        </span>
+                          <span
+                            v-if="match.result === 'BYE'"
+                            style="color: #7f8c8d; font-style: italic"
+                          >
+                            Received a bye (automatic advancement)
+                          </span>
 
-                        <span
-                          v-else-if="match.result === 'L'"
-                          style="color: #e74c3c"
-                        >
-                          <strong>LOST</strong> to
-                          {{ getTaskTitle(match.opponent) }}
-                        </span>
+                          <span
+                            v-else-if="match.result === 'W'"
+                            style="color: #27ae60"
+                          >
+                            <strong>WON</strong> vs
+                            {{ getTaskTitle(match.opponent) }}
+                          </span>
+
+                          <span
+                            v-else-if="match.result === 'L'"
+                            style="color: #e74c3c"
+                          >
+                            <strong>LOST</strong> to
+                            {{ getTaskTitle(match.opponent) }}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div
-                    v-else
-                    style="
-                      color: #7f8c8d;
-                      font-style: italic;
-                      text-align: center;
-                      padding: 10px;
-                    "
-                  >
-                    No match history available for this task.
+                    <div
+                      v-else
+                      style="
+                        color: #7f8c8d;
+                        font-style: italic;
+                        text-align: center;
+                        padding: 10px;
+                      "
+                    >
+                      No match history available for this task.
+                    </div>
                   </div>
-                </div>
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
-    </div>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
 
-    <div style="text-align: center; margin-top: 30px">
-      <button class="success" style="margin-right: 10px" @click="exportResults">
-        📥 Download Rankings CSV
-      </button>
-      <button
-        data-testid="restart-button"
-        class="accent"
-        @click="restartBracketology"
-      >
-        Start New Tournament
-      </button>
+      <div style="text-align: center; margin-top: 30px">
+        <button
+          class="success"
+          style="margin-right: 10px"
+          @click="exportResults"
+        >
+          📥 Download Rankings CSV
+        </button>
+        <button
+          data-testid="restart-button"
+          class="accent"
+          @click="restartBracketology"
+        >
+          Start New Tournament
+        </button>
+      </div>
     </div>
-  </div>
   </div>
 </template>
 
@@ -238,7 +246,11 @@ import { ref, computed, onMounted } from 'vue';
 import TournamentProgress from './TournamentProgress.vue';
 import TournamentSetup from './TournamentSetup.vue';
 import TaskMatchup from './TaskMatchup.vue';
-import { Tournament, QuickSortTournament, createTournament } from '../utils/TournamentRunner';
+import {
+  Tournament,
+  QuickSortTournament,
+  createTournament,
+} from '../utils/TournamentRunner';
 import { BracketStorage, type SavedBracket } from '../utils/BracketStorage';
 import { URLBracketSharing } from '../utils/URLBracketSharing';
 import { StorageOptimizer, type StorageUsage } from '../utils/StorageOptimizer';
@@ -261,12 +273,12 @@ const tournamentType = ref<TournamentType>('single');
 const taskNameColumn = ref<string>('');
 const selectedSecondaryFields = ref<string[]>([]);
 const tasks = ref<Participant[]>([]);
-const matchHistory = ref<Map<ParticipantUUID, MatchHistoryEntry[]>>(new Map());  // Now uses UUID as key
+const matchHistory = ref<Map<ParticipantUUID, MatchHistoryEntry[]>>(new Map()); // Now uses UUID as key
 const expandedTaskHistory = ref<Participant | null>(null);
 
 // UUID mapping for participants
-const taskUuidMap = ref<Map<ParticipantUUID, Participant>>(new Map());  // UUID -> original task
-const taskToUuidMap = ref<Map<Participant, ParticipantUUID>>(new Map());  // original task -> UUID
+const taskUuidMap = ref<Map<ParticipantUUID, Participant>>(new Map()); // UUID -> original task
+const taskToUuidMap = ref<Map<Participant, ParticipantUUID>>(new Map()); // original task -> UUID
 let nextTaskId = 0;
 
 // Bracket storage state
@@ -279,7 +291,11 @@ const storageUsage = ref<StorageUsage | null>(null);
 // Current match state
 const currentMatch = ref<ActiveMatch | null>(null);
 const currentPair = computed(() => {
-  if (!currentMatch.value || !currentMatch.value.player1 || !currentMatch.value.player2) {
+  if (
+    !currentMatch.value ||
+    !currentMatch.value.player1 ||
+    !currentMatch.value.player2
+  ) {
     return [null, null];
   }
   // Convert UUIDs to participant objects for display
@@ -318,8 +334,8 @@ defineExpose({
 // Final results
 const finalRankings = computed(() => {
   if (!tournament.value || !tournament.value.isComplete()) return [];
-  const rankingUuids = tournament.value.getRankings();  // Returns UUIDs
-  console.log("rankingUuids", rankingUuids);
+  const rankingUuids = tournament.value.getRankings(); // Returns UUIDs
+  console.log('rankingUuids', rankingUuids);
   // Convert UUIDs back to participant objects for display
   return rankingUuids.map(uuid => getTaskByUuid(uuid)).filter(Boolean);
 });
@@ -334,16 +350,19 @@ function generateTaskUuid(): ParticipantUUID {
   return `task_${nextTaskId++}` as ParticipantUUID;
 }
 
-function createTaskUuidMapping(taskList: Participant[], existingUuids?: ParticipantUUID[]) {
+function createTaskUuidMapping(
+  taskList: Participant[],
+  existingUuids?: ParticipantUUID[]
+) {
   // Clear existing mappings
   taskUuidMap.value.clear();
   taskToUuidMap.value.clear();
   nextTaskId = 0;
-  
+
   // Create UUID for each task
   taskList.forEach((task, index) => {
     let uuid: ParticipantUUID;
-    
+
     if (existingUuids && existingUuids[index]) {
       // Use existing UUID from saved state
       uuid = existingUuids[index];
@@ -357,7 +376,7 @@ function createTaskUuidMapping(taskList: Participant[], existingUuids?: Particip
       // Generate new UUID
       uuid = generateTaskUuid();
     }
-    
+
     taskUuidMap.value.set(uuid, task);
     taskToUuidMap.value.set(task, uuid);
   });
@@ -438,7 +457,7 @@ function chooseWinner(winnerIndex: number) {
   // Record match history using UUIDs as keys and storing opponent's original task for display
   const matchRecord: MatchHistoryEntry = {
     round: currentMatch.value.round,
-    opponent: loserTask,  // Store original task for display
+    opponent: loserTask, // Store original task for display
     result: 'W',
     matchNumber: tournament.value.getCurrentMatchNumber(),
     bracket: currentMatch.value.bracket || 'main',
@@ -446,7 +465,7 @@ function chooseWinner(winnerIndex: number) {
 
   const loserRecord: MatchHistoryEntry = {
     round: currentMatch.value.round,
-    opponent: winnerTask,  // Store original task for display
+    opponent: winnerTask, // Store original task for display
     result: 'L',
     matchNumber: tournament.value.getCurrentMatchNumber(),
     bracket: currentMatch.value.bracket || 'main',
@@ -518,30 +537,30 @@ function buildMatchHistoryFromTournament() {
 
   // Reset match history using UUIDs as keys
   matchHistory.value = new Map();
-  const rankingUuids = tournament.value.getRankings();  // Now returns UUIDs
+  const rankingUuids = tournament.value.getRankings(); // Now returns UUIDs
   rankingUuids.forEach(uuid => {
     matchHistory.value.set(uuid, []);
   });
 
   // Use the Tournament class's matches getter which already filters and processed matches correctly
   const completedMatches = tournament.value.matches;
-  
+
   completedMatches.forEach((match: any, index: number) => {
-    const winnerUuid = match.winner;  // Now UUIDs
-    const loserUuid = match.loser;    // Now UUIDs
-    
+    const winnerUuid = match.winner; // Now UUIDs
+    const loserUuid = match.loser; // Now UUIDs
+
     if (!winnerUuid || !loserUuid) return;
 
     // Get original task objects for display
     const winnerTask = getTaskByUuid(winnerUuid);
     const loserTask = getTaskByUuid(loserUuid);
-    
+
     if (!winnerTask || !loserTask) return;
 
     // Add win record for winner
     const winRecord: MatchHistoryEntry = {
       round: match.round || 1,
-      opponent: loserTask,  // Store original task for display
+      opponent: loserTask, // Store original task for display
       result: 'W',
       matchNumber: index + 1,
       bracket: 'main',
@@ -550,7 +569,7 @@ function buildMatchHistoryFromTournament() {
     // Add loss record for loser
     const lossRecord: MatchHistoryEntry = {
       round: match.round || 1,
-      opponent: winnerTask,  // Store original task for display
+      opponent: winnerTask, // Store original task for display
       result: 'L',
       matchNumber: index + 1,
       bracket: 'main',
@@ -627,7 +646,7 @@ function restartBracketology() {
   currentBracketId.value = null;
   loadedFromURL.value = false;
   showAutoSaveNotice.value = false;
-  
+
   // Clear UUID mappings
   taskUuidMap.value.clear();
   taskToUuidMap.value.clear();
@@ -657,10 +676,10 @@ function loadBracket(bracketId: string) {
     selectedSecondaryFields.value = state.selectedSecondaryFields || [];
     tasks.value = state.tasks || [];
     currentMatch.value = state.currentMatch;
-    
+
     // Rebuild UUID mappings using saved UUIDs (if available)
     createTaskUuidMapping(tasks.value, state.csvDataUUID);
-    
+
     // Restore matchHistory - ensure it's a proper Map with UUID keys
     if (state.matchHistory && state.matchHistory instanceof Map) {
       matchHistory.value = state.matchHistory;
@@ -680,9 +699,13 @@ function loadBracket(bracketId: string) {
       if (currentPhase.value === 'matchups' && tournament.value) {
         currentMatch.value = tournament.value.getNextMatch();
       }
-      
+
       // Always rebuild match history for completed tournaments
-      if (currentPhase.value === 'results' && tournament.value && tournament.value.isComplete()) {
+      if (
+        currentPhase.value === 'results' &&
+        tournament.value &&
+        tournament.value.isComplete()
+      ) {
         buildMatchHistoryFromTournament();
       }
     }
@@ -707,7 +730,7 @@ function saveBracket() {
   try {
     // Extract UUID array from the mapping
     const csvDataUUID = tasks.value.map(task => getUuidByTask(task)!);
-    
+
     const bracketData = BracketStorage.serializeBracket({
       tournamentName: tournamentName.value,
       currentPhase: currentPhase.value,

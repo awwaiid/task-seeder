@@ -38,11 +38,14 @@
             <div style="font-size: 12px; color: #666">
               {{ bracket.status === 'results' ? 'Completed' : 'In Progress' }} •
               {{ bracket.csvData?.length || 0 }} tasks •
-              {{ 
-                bracket.tournamentType === 'double' ? 'Double elimination' : 
-                bracket.tournamentType === 'quicksort' ? 'QuickSort ranking' : 
-                'Single elimination' 
-              }} •
+              {{
+                bracket.tournamentType === 'double'
+                  ? 'Double elimination'
+                  : bracket.tournamentType === 'quicksort'
+                    ? 'QuickSort ranking'
+                    : 'Single elimination'
+              }}
+              •
               {{ formatDate(bracket.lastModified) }}
             </div>
           </div>

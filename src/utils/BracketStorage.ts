@@ -216,7 +216,9 @@ export class BracketStorage {
         state.currentMatch = null; // Current match is managed by tournament-organizer
       } catch (error) {
         console.error('Error restoring tournament from stored state:', error);
-        console.warn('Tournament restoration failed. Tournament will need to be recreated.');
+        console.warn(
+          'Tournament restoration failed. Tournament will need to be recreated.'
+        );
         // Don't create a fallback tournament here - let TournamentManager handle it
         state.tournament = null;
         state.tasks = bracketData.csvData;

@@ -33,7 +33,9 @@ vi.mock('../../src/utils/TournamentRunner.js', () => {
       getTotalMatches: vi.fn().mockReturnValue(3),
       getTotalRounds: vi.fn().mockReturnValue(2),
       getMatchesInRound: vi.fn().mockReturnValue(2),
-      isComplete: vi.fn(() => isCompleted || (entrants && entrants.length <= 1)),
+      isComplete: vi.fn(
+        () => isCompleted || (entrants && entrants.length <= 1)
+      ),
       getRankings: vi.fn().mockReturnValue([]),
       get matches() {
         return matches;
@@ -120,11 +122,11 @@ describe('TournamentManager Integration Tests', () => {
     wrapper.vm.createTaskUuidMapping = vi.fn((taskList, existingUuids) => {
       // Call original function to set up basic state
       originalCreateTaskUuidMapping.call(wrapper.vm, taskList, existingUuids);
-      
+
       // Override the taskUuidMap with our mock data
       wrapper.vm.taskUuidMap.clear();
       wrapper.vm.taskToUuidMap.clear();
-      
+
       taskList.forEach((task, index) => {
         const uuid = `task_${index}`;
         wrapper.vm.taskUuidMap.set(uuid, task);

@@ -31,7 +31,7 @@ export class Tournament {
   private tournamentId: string;
 
   type: string;
-  originalEntrants: ParticipantUUID[];  // Now stores UUIDs instead of participant objects
+  originalEntrants: ParticipantUUID[]; // Now stores UUIDs instead of participant objects
   taskNameColumn: string | undefined;
 
   // Properties expected by tests
@@ -72,7 +72,7 @@ export class Tournament {
 
   constructor(
     type: TournamentType,
-    entrants: ParticipantUUID[],  // Now accepts UUIDs instead of participant objects
+    entrants: ParticipantUUID[], // Now accepts UUIDs instead of participant objects
     options: TournamentOptions = {}
   ) {
     if (!entrants || entrants.length < 1) {
@@ -84,7 +84,10 @@ export class Tournament {
 
     // Apply seeding to UUIDs (seeding method still affects order)
     const seedingMethod = options.seedingMethod || 'order';
-    const seededEntrants = this._applySeedingMethodToUuids(entrants, seedingMethod);
+    const seededEntrants = this._applySeedingMethodToUuids(
+      entrants,
+      seedingMethod
+    );
 
     // Store the seeded UUIDs
     this.originalEntrants = [...seededEntrants];
@@ -129,7 +132,7 @@ export class Tournament {
     this.tournamentId = this.tournament.id;
 
     // Add all participants to tournament (using seeded order)
-    seededEntrants.forEach((uuid) => {
+    seededEntrants.forEach(uuid => {
       // Use UUID directly as player ID, display name doesn't matter since UI handles display
       this.tournament.createPlayer(uuid, uuid);
     });
@@ -156,16 +159,16 @@ export class Tournament {
 
     // Return the first active match
     const match = activeMatches[0];
-    const player1Uuid = match.player1.id;  // Now UUIDs directly
-    const player2Uuid = match.player2.id;  // Now UUIDs directly
+    const player1Uuid = match.player1.id; // Now UUIDs directly
+    const player2Uuid = match.player2.id; // Now UUIDs directly
 
     if (!player1Uuid || !player2Uuid) {
       return null;
     }
 
     return {
-      player1: player1Uuid as ParticipantUUID,  // Return UUID instead of participant object
-      player2: player2Uuid as ParticipantUUID,  // Return UUID instead of participant object
+      player1: player1Uuid as ParticipantUUID, // Return UUID instead of participant object
+      player2: player2Uuid as ParticipantUUID, // Return UUID instead of participant object
       round: match.round,
       matchInRound: match.match,
       bracket: this.type,
@@ -203,10 +206,19 @@ export class Tournament {
   }
 
   isComplete(): boolean {
-    const allMatchesComplete = this.tournament.matches?.every((match: any) => !match.active) || false;
-    const complete = this.tournament.status === 'complete' || 
-                    (this.tournament.status === 'stage-one' && allMatchesComplete);
-    console.log('isComplete() called, status:', this.tournament?.status, 'allMatchesComplete:', allMatchesComplete, 'complete:', complete);
+    const allMatchesComplete =
+      this.tournament.matches?.every((match: any) => !match.active) || false;
+    const complete =
+      this.tournament.status === 'complete' ||
+      (this.tournament.status === 'stage-one' && allMatchesComplete);
+    console.log(
+      'isComplete() called, status:',
+      this.tournament?.status,
+      'allMatchesComplete:',
+      allMatchesComplete,
+      'complete:',
+      complete
+    );
     return complete;
   }
 
@@ -214,40 +226,46 @@ export class Tournament {
     return this._findParticipantByPlayerId(playerId);
   }
 
-  getRankings(): ParticipantUUID[] {  // Now returns UUIDs instead of participant objects
+  getRankings(): ParticipantUUID[] {
+    // Now returns UUIDs instead of participant objects
     console.log('getRankings() called');
     try {
       console.log('Tournament status check:', {
         hasTournament: !!this.tournament,
         status: this.tournament?.status,
-        originalEntrantsCount: this.originalEntrants?.length || 0
+        originalEntrantsCount: this.originalEntrants?.length || 0,
       });
-      
+
       if (!this.tournament) {
-        console.log("no tournament");
+        console.log('no tournament');
         return this.originalEntrants;
       }
 
       // Check if tournament is complete before getting standings
       // Tournament-organizer might use different statuses, so also check if all matches are done
-      const allMatchesComplete = this.tournament.matches?.every((match: any) => !match.active) || false;
-      const isComplete = this.tournament.status === 'complete' || 
-                        (this.tournament.status === 'stage-one' && allMatchesComplete);
-      
+      const allMatchesComplete =
+        this.tournament.matches?.every((match: any) => !match.active) || false;
+      const isComplete =
+        this.tournament.status === 'complete' ||
+        (this.tournament.status === 'stage-one' && allMatchesComplete);
+
       console.log('Tournament completion check:', {
         status: this.tournament.status,
         allMatchesComplete,
         totalMatches: this.tournament.matches?.length || 0,
-        activeMatches: this.tournament.matches?.filter((m: any) => m.active).length || 0,
-        isComplete
+        activeMatches:
+          this.tournament.matches?.filter((m: any) => m.active).length || 0,
+        isComplete,
       });
-      
+
       if (!isComplete) {
-        console.log("tournament incomplete, status:", this.tournament.status);
+        console.log('tournament incomplete, status:', this.tournament.status);
         return this.originalEntrants;
       }
 
-      console.log('Tournament is complete, calling _getTournamentOrganizerRankings');
+      console.log(
+        'Tournament is complete, calling _getTournamentOrganizerRankings'
+      );
       // Use our implementation of the tournament-organizer ranking algorithm
       // We bypass the official standings() method due to private field access issues
       // and use our equivalent implementation that replicates the exact same logic
@@ -283,7 +301,8 @@ export class Tournament {
     return null;
   }
 
-  reportResult(match: ActiveMatch, winnerUuid: ParticipantUUID): void {  // Now expects UUID
+  reportResult(match: ActiveMatch, winnerUuid: ParticipantUUID): void {
+    // Now expects UUID
     const originalMatch = match.originalMatch;
     if (!originalMatch) {
       throw new Error('Invalid match - missing original match data');
@@ -342,15 +361,15 @@ export class Tournament {
       version: state.version,
       type: state.type,
       originalEntrantsCount: state.originalEntrants?.length || 0,
-      tournamentStatus: state.tournamentState?.status
+      tournamentStatus: state.tournamentState?.status,
     });
-    
+
     if (state.version === '3.0') {
       // Handle quicksort tournaments
       if (state.type === 'quicksort') {
         return QuickSortTournament.fromStoredState(state, options);
       }
-      
+
       // New format using tournament-organizer
       const tournament = new Tournament(state.type, state.originalEntrants, {
         ...options,
@@ -363,16 +382,16 @@ export class Tournament {
       // by replaying all match results on a fresh tournament instance. This preserves
       // the proper tournament initialization through #createMatches() and ensures
       // the standings() method works correctly.
-      
+
       const savedState = state.tournamentState;
       console.log('Saved state details:', {
         hasMatches: !!savedState.matches,
         matchesCount: savedState.matches?.length || 0,
         hasPlayers: !!savedState.players,
         playersCount: savedState.players?.length || 0,
-        status: savedState.status
+        status: savedState.status,
       });
-      
+
       // The tournament is already started by the constructor, so we just need to replay results
       if (savedState.matches && savedState.matches.length > 0) {
         const sampleMatches = savedState.matches.slice(0, 3).map((m: any) => ({
@@ -384,40 +403,48 @@ export class Tournament {
           player1Win: m.player1?.win,
           player2Win: m.player2?.win,
           player1WinType: typeof m.player1?.win,
-          player2WinType: typeof m.player2?.win
+          player2WinType: typeof m.player2?.win,
         }));
-        console.log('Sample saved matches data:', JSON.stringify(sampleMatches, null, 2));
-        
+        console.log(
+          'Sample saved matches data:',
+          JSON.stringify(sampleMatches, null, 2)
+        );
+
         // Sort matches by round to replay them in the correct order
         const completedMatches = savedState.matches
-          .filter((match: any) => 
-            !match.active && 
-            match.player1?.id && 
-            match.player2?.id && 
-            typeof match.player1.win === 'number' && 
-            typeof match.player2.win === 'number'
+          .filter(
+            (match: any) =>
+              !match.active &&
+              match.player1?.id &&
+              match.player2?.id &&
+              typeof match.player1.win === 'number' &&
+              typeof match.player2.win === 'number'
           )
           .sort((a: any, b: any) => a.round - b.round || a.match - b.match);
-        
-        console.log('Found completed matches to replay:', completedMatches.length);
-        
+
+        console.log(
+          'Found completed matches to replay:',
+          completedMatches.length
+        );
+
         // Replay each completed match
         for (const savedMatch of completedMatches) {
           // Find the corresponding match in our fresh tournament
-          const currentMatch = tournament.tournament.matches.find((m: any) => 
-            m.player1?.id === savedMatch.player1.id && 
-            m.player2?.id === savedMatch.player2.id &&
-            m.round === savedMatch.round &&
-            m.active === true
+          const currentMatch = tournament.tournament.matches.find(
+            (m: any) =>
+              m.player1?.id === savedMatch.player1.id &&
+              m.player2?.id === savedMatch.player2.id &&
+              m.round === savedMatch.round &&
+              m.active === true
           );
-          
+
           if (currentMatch) {
             try {
               console.log('Replaying match:', {
                 player1: savedMatch.player1.id,
                 player2: savedMatch.player2.id,
                 player1Win: savedMatch.player1.win,
-                player2Win: savedMatch.player2.win
+                player2Win: savedMatch.player2.win,
               });
               tournament.tournament.enterResult(
                 currentMatch.id,
@@ -429,11 +456,17 @@ export class Tournament {
               console.warn('Error replaying match result:', error, savedMatch);
             }
           } else {
-            console.warn('Could not find current match for saved match:', savedMatch);
+            console.warn(
+              'Could not find current match for saved match:',
+              savedMatch
+            );
           }
         }
-        
-        console.log('Tournament status after replay:', tournament.tournament.status);
+
+        console.log(
+          'Tournament status after replay:',
+          tournament.tournament.status
+        );
       } else {
         console.log('No completed matches to replay');
       }
@@ -447,7 +480,9 @@ export class Tournament {
 
   // Helper methods
 
-  private _findParticipantByPlayerId(playerId: ParticipantUUID): ParticipantUUID {
+  private _findParticipantByPlayerId(
+    playerId: ParticipantUUID
+  ): ParticipantUUID {
     if (!playerId) {
       throw new Error('Player ID cannot be empty');
     }
@@ -481,7 +516,6 @@ export class Tournament {
     }
   }
 
-
   private _getMatchWinner(match: any): ParticipantUUID | null {
     if (!match.player1 || !match.player2) return null;
 
@@ -489,9 +523,9 @@ export class Tournament {
     const player2Wins = match.player2.win || 0;
 
     if (player1Wins > player2Wins) {
-      return match.player1.id;  // Return UUID directly
+      return match.player1.id; // Return UUID directly
     } else if (player2Wins > player1Wins) {
-      return match.player2.id;  // Return UUID directly
+      return match.player2.id; // Return UUID directly
     }
 
     return null;
@@ -504,9 +538,9 @@ export class Tournament {
     const player2Wins = match.player2.win || 0;
 
     if (player1Wins > player2Wins) {
-      return match.player2.id;  // Return UUID directly
+      return match.player2.id; // Return UUID directly
     } else if (player2Wins > player1Wins) {
-      return match.player1.id;  // Return UUID directly
+      return match.player1.id; // Return UUID directly
     }
 
     return null;
@@ -521,17 +555,23 @@ export class Tournament {
   private _getTournamentOrganizerRankings(): ParticipantUUID[] {
     // Implementation of the exact tournament-organizer standings algorithm
     // This replicates the computeScores() and standings() methods from tournament-organizer
-    
+
     console.log('_getTournamentOrganizerRankings called, tournament data:', {
       hasPlayers: !!this.tournament?.players,
       playersCount: this.tournament?.players?.length || 0,
       hasMatches: !!this.tournament?.matches,
       matchesCount: this.tournament?.matches?.length || 0,
-      originalEntrantsCount: this.originalEntrants?.length || 0
+      originalEntrantsCount: this.originalEntrants?.length || 0,
     });
-    
-    if (!this.tournament?.players || !this.tournament?.matches || this.tournament.players.length === 0) {
-      console.warn('No tournament data available for tournament-organizer rankings');
+
+    if (
+      !this.tournament?.players ||
+      !this.tournament?.matches ||
+      this.tournament.players.length === 0
+    ) {
+      console.warn(
+        'No tournament data available for tournament-organizer rankings'
+      );
       return this.originalEntrants;
     }
 
@@ -552,8 +592,8 @@ export class Tournament {
         oppMatchWinPct: 0,
         oppOppMatchWinPct: 0,
         gameWinPct: 0,
-        oppGameWinPct: 0
-      }
+        oppGameWinPct: 0,
+      },
     }));
 
     // Scoring configuration (equivalent to tournament-organizer defaults)
@@ -561,7 +601,7 @@ export class Tournament {
       win: 1,
       loss: 0,
       draw: 0.5,
-      bye: 1
+      bye: 1,
     };
 
     // Step 2: Calculate basic stats for each player
@@ -580,73 +620,128 @@ export class Tournament {
 
       // Calculate points from completed matches
       player.player.matches
-        .filter((match: any) => this.tournament.matches.find((m: any) => m.id === match.id && m.active === false))
+        .filter((match: any) =>
+          this.tournament.matches.find(
+            (m: any) => m.id === match.id && m.active === false
+          )
+        )
         .forEach((match: any) => {
-          player.gamePoints += ((match.bye ? scoring.bye : scoring.win) * match.win) + 
-                             (scoring.loss * match.loss) + 
-                             (scoring.draw * match.draw);
+          player.gamePoints +=
+            (match.bye ? scoring.bye : scoring.win) * match.win +
+            scoring.loss * match.loss +
+            scoring.draw * match.draw;
           player.games += match.win + match.loss + match.draw;
-          player.matchPoints += match.bye ? scoring.bye : 
-                               match.win > match.loss ? scoring.win : 
-                               match.loss > match.win ? scoring.loss : 
-                               scoring.draw;
+          player.matchPoints += match.bye
+            ? scoring.bye
+            : match.win > match.loss
+              ? scoring.win
+              : match.loss > match.win
+                ? scoring.loss
+                : scoring.draw;
           player.tiebreaks.cumulative += player.matchPoints;
           player.matches++;
         });
 
-      player.tiebreaks.gameWinPct = player.games === 0 ? 0 : player.gamePoints / (player.games * scoring.win);
-      player.tiebreaks.matchWinPct = player.matches === 0 ? 0 : player.matchPoints / (player.matches * scoring.win);
+      player.tiebreaks.gameWinPct =
+        player.games === 0
+          ? 0
+          : player.gamePoints / (player.games * scoring.win);
+      player.tiebreaks.matchWinPct =
+        player.matches === 0
+          ? 0
+          : player.matchPoints / (player.matches * scoring.win);
     }
 
     // Step 3: Calculate opponent-based tiebreakers
     for (let i = 0; i < playerScores.length; i++) {
       const player = playerScores[i];
-      const opponents = playerScores.filter((p: any) => 
-        player.player.matches.some((match: any) => match.opponent === p.player.id)
+      const opponents = playerScores.filter((p: any) =>
+        player.player.matches.some(
+          (match: any) => match.opponent === p.player.id
+        )
       );
-      
+
       if (opponents.length === 0) {
         continue;
       }
 
-      player.tiebreaks.oppMatchWinPct = opponents.reduce((sum: number, opp: any) => sum + opp.tiebreaks.matchWinPct, 0) / opponents.length;
-      player.tiebreaks.oppGameWinPct = opponents.reduce((sum: number, opp: any) => sum + opp.tiebreaks.gameWinPct, 0) / opponents.length;
-      
+      player.tiebreaks.oppMatchWinPct =
+        opponents.reduce(
+          (sum: number, opp: any) => sum + opp.tiebreaks.matchWinPct,
+          0
+        ) / opponents.length;
+      player.tiebreaks.oppGameWinPct =
+        opponents.reduce(
+          (sum: number, opp: any) => sum + opp.tiebreaks.gameWinPct,
+          0
+        ) / opponents.length;
+
       const oppMatchPoints = opponents.map((opp: any) => opp.matchPoints);
-      player.tiebreaks.solkoff = oppMatchPoints.reduce((sum: number, curr: number) => sum + curr, 0);
-      
+      player.tiebreaks.solkoff = oppMatchPoints.reduce(
+        (sum: number, curr: number) => sum + curr,
+        0
+      );
+
       if (oppMatchPoints.length > 2) {
-        const max = oppMatchPoints.reduce((max: number, curr: number) => Math.max(max, curr), 0);
-        const min = oppMatchPoints.reduce((min: number, curr: number) => Math.min(min, curr), max);
+        const max = oppMatchPoints.reduce(
+          (max: number, curr: number) => Math.max(max, curr),
+          0
+        );
+        const min = oppMatchPoints.reduce(
+          (min: number, curr: number) => Math.min(min, curr),
+          max
+        );
         const filteredPoints = [...oppMatchPoints];
         filteredPoints.splice(filteredPoints.indexOf(max), 1);
         filteredPoints.splice(filteredPoints.indexOf(min), 1);
-        player.tiebreaks.medianBuchholz = filteredPoints.reduce((sum: number, curr: number) => sum + curr, 0);
+        player.tiebreaks.medianBuchholz = filteredPoints.reduce(
+          (sum: number, curr: number) => sum + curr,
+          0
+        );
       }
 
-      player.tiebreaks.sonnebornBerger = opponents.reduce((sum: number, opp: any) => {
-        const match = player.player.matches.find((m: any) => m.opponent === opp.player.id);
-        if (this.tournament.matches.find((m: any) => m.id === match.id).active === true) {
-          return sum;
-        }
-        return match.win > match.loss ? sum + opp.matchPoints : sum + (0.5 * opp.matchPoints);
-      }, 0);
+      player.tiebreaks.sonnebornBerger = opponents.reduce(
+        (sum: number, opp: any) => {
+          const match = player.player.matches.find(
+            (m: any) => m.opponent === opp.player.id
+          );
+          if (
+            this.tournament.matches.find((m: any) => m.id === match.id)
+              .active === true
+          ) {
+            return sum;
+          }
+          return match.win > match.loss
+            ? sum + opp.matchPoints
+            : sum + 0.5 * opp.matchPoints;
+        },
+        0
+      );
 
-      player.tiebreaks.oppCumulative = opponents.reduce((sum: number, opp: any) => sum + opp.tiebreaks.cumulative, 0);
+      player.tiebreaks.oppCumulative = opponents.reduce(
+        (sum: number, opp: any) => sum + opp.tiebreaks.cumulative,
+        0
+      );
     }
 
     // Step 4: Calculate opponent's opponent match win percentage
     for (let i = 0; i < playerScores.length; i++) {
       const player = playerScores[i];
-      const opponents = playerScores.filter((p: any) => 
-        player.player.matches.some((match: any) => match.opponent === p.player.id)
+      const opponents = playerScores.filter((p: any) =>
+        player.player.matches.some(
+          (match: any) => match.opponent === p.player.id
+        )
       );
-      
+
       if (opponents.length === 0) {
         continue;
       }
-      
-      player.tiebreaks.oppOppMatchWinPct = opponents.reduce((sum: number, opp: any) => sum + opp.tiebreaks.oppMatchWinPct, 0) / opponents.length;
+
+      player.tiebreaks.oppOppMatchWinPct =
+        opponents.reduce(
+          (sum: number, opp: any) => sum + opp.tiebreaks.oppMatchWinPct,
+          0
+        ) / opponents.length;
     }
 
     // Step 5: Sort players using tournament-organizer algorithm (equivalent to standings())
@@ -661,30 +756,47 @@ export class Tournament {
 
       // No tiebreakers configured for elimination tournaments typically
       // But we'll include the most common ones used
-      const tiebreaks = ['versus', 'game win percentage', 'opponent match win percentage'];
-      
+      const tiebreaks = [
+        'versus',
+        'game win percentage',
+        'opponent match win percentage',
+      ];
+
       for (let i = 0; i < tiebreaks.length; i++) {
         switch (tiebreaks[i]) {
-          case 'versus':
-            const matchIDs = a.player.matches.filter((m: any) => m.opponent === b.player.id).map((m: any) => m.id);
+          case 'versus': {
+            const matchIDs = a.player.matches
+              .filter((m: any) => m.opponent === b.player.id)
+              .map((m: any) => m.id);
             if (matchIDs.length > 0) {
               const pointsA = a.player.matches
                 .filter((m: any) => matchIDs.some((id: any) => id === m.id))
-                .reduce((sum: number, curr: any) => 
-                  curr.win > curr.loss ? sum + scoring.win : 
-                  curr.loss > curr.win ? sum + scoring.loss : 
-                  sum + scoring.draw, 0);
+                .reduce(
+                  (sum: number, curr: any) =>
+                    curr.win > curr.loss
+                      ? sum + scoring.win
+                      : curr.loss > curr.win
+                        ? sum + scoring.loss
+                        : sum + scoring.draw,
+                  0
+                );
               const pointsB = b.player.matches
                 .filter((m: any) => matchIDs.some((id: any) => id === m.id))
-                .reduce((sum: number, curr: any) => 
-                  curr.win > curr.loss ? sum + scoring.win : 
-                  curr.loss > curr.win ? sum + scoring.loss : 
-                  sum + scoring.draw, 0);
+                .reduce(
+                  (sum: number, curr: any) =>
+                    curr.win > curr.loss
+                      ? sum + scoring.win
+                      : curr.loss > curr.win
+                        ? sum + scoring.loss
+                        : sum + scoring.draw,
+                  0
+                );
               if (pointsA !== pointsB) {
                 return pointsB - pointsA;
               }
             }
             break;
+          }
           case 'game win percentage':
             if (a.tiebreaks.gameWinPct !== b.tiebreaks.gameWinPct) {
               return b.tiebreaks.gameWinPct - a.tiebreaks.gameWinPct;
@@ -703,7 +815,7 @@ export class Tournament {
     });
 
     const rankings = players.map(player => player.player.id as ParticipantUUID);
-    
+
     console.log('Tournament-organizer equivalent rankings:', {
       playerCount: rankings.length,
       algorithm: 'tournament-organizer-equivalent',
@@ -712,8 +824,8 @@ export class Tournament {
         rank: players.indexOf(p) + 1,
         matchPoints: p.matchPoints,
         gameWinPct: p.tiebreaks.gameWinPct,
-        oppMatchWinPct: p.tiebreaks.oppMatchWinPct
-      }))
+        oppMatchWinPct: p.tiebreaks.oppMatchWinPct,
+      })),
     });
 
     return rankings;
@@ -741,7 +853,7 @@ export class QuickSortTournament {
   type: string = 'quicksort';
   originalEntrants: ParticipantUUID[];
   taskNameColumn: string | undefined;
-  
+
   private participants: ParticipantUUID[];
   private comparisons: Array<{
     pivot: ParticipantUUID;
@@ -757,21 +869,18 @@ export class QuickSortTournament {
   private totalComparisons: number = 0;
   private comparisonResults: Map<string, ParticipantUUID> = new Map();
 
-  constructor(
-    entrants: ParticipantUUID[],
-    options: TournamentOptions = {}
-  ) {
+  constructor(entrants: ParticipantUUID[], options: TournamentOptions = {}) {
     if (!entrants || entrants.length < 1) {
       throw new Error('Tournament requires at least 1 entrant');
     }
 
     this.taskNameColumn = options.taskNameColumn;
     this.originalEntrants = [...entrants];
-    
+
     // Apply seeding if specified
     const seedingMethod = options.seedingMethod || 'order';
     this.participants = this._applySeedingMethod(entrants, seedingMethod);
-    
+
     // Handle single participant
     if (this.participants.length === 1) {
       this.comparisons = [];
@@ -781,18 +890,22 @@ export class QuickSortTournament {
     // Initialize quicksort state
     if (this.participants.length > 0) {
       const { pivot, candidates } = this._selectMiddlePivot(this.participants);
-      this.comparisons = [{
-        pivot,
-        candidates,
-        lessThan: [],
-        greaterThan: []
-      }];
+      this.comparisons = [
+        {
+          pivot,
+          candidates,
+          lessThan: [],
+          greaterThan: [],
+        },
+      ];
     } else {
       this.comparisons = [];
     }
 
     // Estimate total comparisons (roughly n log n)
-    this.totalComparisons = Math.ceil(this.participants.length * Math.log2(this.participants.length));
+    this.totalComparisons = Math.ceil(
+      this.participants.length * Math.log2(this.participants.length)
+    );
   }
 
   getNextMatch(): ActiveMatch | null {
@@ -803,22 +916,23 @@ export class QuickSortTournament {
     // Find the next comparison to make
     for (let i = 0; i < this.comparisons.length; i++) {
       const partition = this.comparisons[i];
-      
+
       if (partition && partition.candidates.length > 0) {
         const candidate = partition.candidates[0];
         if (candidate) {
           partition.currentComparison = {
             pivot: partition.pivot,
-            candidate: candidate
+            candidate: candidate,
           };
 
           return {
             player1: partition.pivot,
             player2: candidate,
             round: i + 1,
-            matchInRound: partition.lessThan.length + partition.greaterThan.length + 1,
+            matchInRound:
+              partition.lessThan.length + partition.greaterThan.length + 1,
             bracket: 'quicksort',
-            originalMatch: { partitionIndex: i }
+            originalMatch: { partitionIndex: i },
           };
         }
       }
@@ -830,13 +944,13 @@ export class QuickSortTournament {
   reportResult(match: ActiveMatch, winnerUuid: ParticipantUUID): void {
     const partitionIndex = match.originalMatch.partitionIndex;
     const partition = this.comparisons[partitionIndex];
-    
+
     if (!partition || !partition.currentComparison) {
       throw new Error('No active comparison found');
     }
 
     const { pivot, candidate } = partition.currentComparison;
-    
+
     // Remove candidate from candidates list
     const candidateIndex = partition.candidates.indexOf(candidate);
     if (candidateIndex !== -1) {
@@ -866,22 +980,24 @@ export class QuickSortTournament {
 
   private _processCompletedPartition(partitionIndex: number): void {
     const partition = this.comparisons[partitionIndex];
-    
+
     if (!partition) {
       throw new Error('Partition not found');
     }
-    
+
     // Remove the completed partition
     this.comparisons.splice(partitionIndex, 1);
 
     // Create new partitions for groups that need further sorting
     if (partition.greaterThan.length > 1) {
-      const { pivot, candidates } = this._selectMiddlePivot(partition.greaterThan);
+      const { pivot, candidates } = this._selectMiddlePivot(
+        partition.greaterThan
+      );
       this.comparisons.push({
         pivot,
         candidates,
         lessThan: [],
-        greaterThan: []
+        greaterThan: [],
       });
     }
 
@@ -891,7 +1007,7 @@ export class QuickSortTournament {
         pivot,
         candidates,
         lessThan: [],
-        greaterThan: []
+        greaterThan: [],
       });
     }
   }
@@ -904,7 +1020,7 @@ export class QuickSortTournament {
     if (!this.isComplete()) {
       return this.originalEntrants;
     }
-    
+
     // Reconstruct the final ranking by applying quicksort logic to our participants
     // based on the comparisons we've collected
     return this._buildFinalRanking(this.participants);
@@ -933,16 +1049,22 @@ export class QuickSortTournament {
     return [
       ...this._buildFinalRanking(greaterThan),
       pivot,
-      ...this._buildFinalRanking(lessThan)
+      ...this._buildFinalRanking(lessThan),
     ];
   }
 
-  private _getComparisonKey(player1: ParticipantUUID, player2: ParticipantUUID): string {
+  private _getComparisonKey(
+    player1: ParticipantUUID,
+    player2: ParticipantUUID
+  ): string {
     // Create a consistent key regardless of order
     return [player1, player2].sort().join(':');
   }
 
-  private _didWinAgainst(player1: ParticipantUUID, player2: ParticipantUUID): boolean {
+  private _didWinAgainst(
+    player1: ParticipantUUID,
+    player2: ParticipantUUID
+  ): boolean {
     const key = this._getComparisonKey(player1, player2);
     const winner = this.comparisonResults.get(key);
     return winner === player1;
@@ -952,7 +1074,7 @@ export class QuickSortTournament {
     if (!this.isComplete()) {
       return null;
     }
-    
+
     const rankings = this.getRankings();
     return rankings.length > 0 ? rankings[0] || null : null;
   }
@@ -977,7 +1099,12 @@ export class QuickSortTournament {
 
   get remainingParticipants(): ParticipantUUID[] {
     // Return participants that haven't been fully sorted yet
-    const inProgress = this.comparisons.flatMap(p => [p.pivot, ...p.candidates, ...p.lessThan, ...p.greaterThan]);
+    const inProgress = this.comparisons.flatMap(p => [
+      p.pivot,
+      ...p.candidates,
+      ...p.lessThan,
+      ...p.greaterThan,
+    ]);
     return [...new Set(inProgress)];
   }
 
@@ -985,7 +1112,7 @@ export class QuickSortTournament {
     // Return completed comparisons as matches
     const completedMatches: any[] = [];
     let matchId = 1;
-    
+
     // This is simplified - in a real implementation you'd track all historical matches
     for (let i = 0; i < this.completedComparisons; i++) {
       completedMatches.push({
@@ -996,7 +1123,7 @@ export class QuickSortTournament {
         player2: null,
       });
     }
-    
+
     return completedMatches;
   }
 
@@ -1020,12 +1147,15 @@ export class QuickSortTournament {
         comparisons: this.comparisons,
         completedComparisons: this.completedComparisons,
         totalComparisons: this.totalComparisons,
-        comparisonResults: Array.from(this.comparisonResults.entries())
-      }
+        comparisonResults: Array.from(this.comparisonResults.entries()),
+      },
     };
   }
 
-  static fromStoredState(state: any, options: TournamentOptions = {}): QuickSortTournament {
+  static fromStoredState(
+    state: any,
+    options: TournamentOptions = {}
+  ): QuickSortTournament {
     const tournament = new QuickSortTournament(state.originalEntrants, {
       ...options,
       taskNameColumn: state.taskNameColumn,
@@ -1034,25 +1164,34 @@ export class QuickSortTournament {
     if (state.quicksortState) {
       tournament.participants = state.quicksortState.participants || [];
       tournament.comparisons = state.quicksortState.comparisons || [];
-      tournament.completedComparisons = state.quicksortState.completedComparisons || 0;
+      tournament.completedComparisons =
+        state.quicksortState.completedComparisons || 0;
       tournament.totalComparisons = state.quicksortState.totalComparisons || 0;
-      
+
       // Restore comparison results
       if (state.quicksortState.comparisonResults) {
-        tournament.comparisonResults = new Map(state.quicksortState.comparisonResults);
+        tournament.comparisonResults = new Map(
+          state.quicksortState.comparisonResults
+        );
       }
     }
 
     return tournament;
   }
 
-  private _selectMiddlePivot(items: ParticipantUUID[]): { pivot: ParticipantUUID; candidates: ParticipantUUID[] } {
+  private _selectMiddlePivot(items: ParticipantUUID[]): {
+    pivot: ParticipantUUID;
+    candidates: ParticipantUUID[];
+  } {
     if (items.length === 0) {
       throw new Error('Cannot select pivot from empty array');
     }
     const middleIndex = Math.floor(items.length / 2);
     const pivot = items[middleIndex]!;
-    const candidates = [...items.slice(0, middleIndex), ...items.slice(middleIndex + 1)];
+    const candidates = [
+      ...items.slice(0, middleIndex),
+      ...items.slice(middleIndex + 1),
+    ];
     return { pivot, candidates };
   }
 
