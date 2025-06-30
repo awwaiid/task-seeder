@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Application Architecture
 
-**TaskSeeder** is a Vue 3 application using tournament-style bracket elimination to rank tasks. Users upload CSV files and make head-to-head comparisons to determine priority rankings.
+**TaskSeeder** is a Vue 3 application offering multiple ranking algorithms to prioritize tasks through head-to-head comparisons. Users upload CSV files and choose from tournament brackets, double elimination, or QuickSort-based ranking methods.
 
 ### Core Components Structure
 
@@ -31,27 +31,69 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Key Utilities
 
-- **TournamentRunner.js**: Tournament logic engine using `tournament-pairings` library
+- **TournamentRunner.ts**: Tournament logic engine with multiple algorithms:
+  - Single/Double elimination tournaments using `tournament-pairings` library
+  - QuickSort-based ranking with divide-and-conquer comparisons
 - **BracketStorage.js**: LocalStorage persistence with compression and optimization
 - **URLBracketSharing.js**: URL-based bracket sharing with encoding/compression
 - **StorageOptimizer.js**: Storage usage monitoring and automatic cleanup
 
 ### Data Flow Architecture
 
-1. **Setup**: CSV upload → PapaParse → auto-detect columns → configure tournament options
-2. **Tournament**: Create Tournament instance → present matchups → collect results → track history
+1. **Setup**: CSV upload → PapaParse → auto-detect columns → select algorithm (Tournament/Double/QuickSort)
+2. **Ranking**: Create algorithm instance → present strategic matchups → collect results → track history
 3. **Results**: Display final rankings → export CSV → share via compressed URLs
 
 ### Storage System
 
-Multi-layer approach: in-memory tournament state, LocalStorage persistence with debounced auto-save (10s intervals), and URL encoding for sharing. Large tournaments (>storage quota) skip auto-save to prevent quota errors.
+Multi-layer approach: in-memory algorithm state, LocalStorage persistence with debounced auto-save (10s intervals), and URL encoding for sharing. Large datasets (>storage quota) skip auto-save to prevent quota errors. All three algorithms (Tournament/Double/QuickSort) use the same storage system.
 
 ### Performance Optimizations
 
 - Debounced auto-save during rapid matchup sequences
 - Pre-computed tournament structures for O(1) match lookups
+- QuickSort algorithm provides O(n log n) efficiency vs O(n²) full comparison
 - Participant index compression in storage
 - Smart match ordering for balanced bracket progression
+
+## Ranking Algorithms
+
+TaskSeeder offers three distinct ranking algorithms, each optimized for different use cases:
+
+### Tournament Mode (Single Elimination)
+- **Best for**: Finding a clear winner from any size list
+- **Process**: Traditional bracket elimination (winner advances, loser eliminated)
+- **Comparisons**: Exactly `n-1` matches required
+- **Output**: Winner + elimination order
+- **Efficiency**: Most efficient for determining top choice
+
+### Double Elimination
+- **Best for**: More robust winner selection with second chances
+- **Process**: Losers bracket gives eliminated participants another chance
+- **Comparisons**: Up to `2n-1` matches (typically fewer)
+- **Output**: Winner + detailed elimination order
+- **Efficiency**: Balanced between robustness and speed
+
+### QuickSort Mode
+- **Best for**: Complete priority rankings of medium-sized lists (10-50 tasks)
+- **Process**: Divide-and-conquer algorithm using pivot comparisons
+- **Comparisons**: Approximately `n log n` matches on average
+- **Output**: Complete sorted order from highest to lowest priority
+- **Efficiency**: Optimal for full rankings without excessive comparisons
+
+#### QuickSort Algorithm Details
+- **Implementation**: Custom QuickSort tournament class in `TournamentRunner.ts:852-1221`
+- **Pivot Strategy**: Uses middle element to minimize worst-case scenarios
+- **Partitioning**: Compares all elements against pivot, creating sub-partitions
+- **State Management**: Maintains partition stack and comparison history
+- **Completion**: Tournament ends when all partitions are fully sorted
+
+#### When to Choose Each Algorithm
+| Algorithm | Participants | Goal | Time Investment |
+|-----------|-------------|------|-----------------|
+| **Tournament** | Any size | Find winner | Minimal |
+| **Double Elimination** | Any size | Robust winner | Moderate |
+| **QuickSort** | 10-50 | Complete ranking | Efficient |
 
 ## Testing Rules
 
