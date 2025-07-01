@@ -253,6 +253,8 @@ import {
 } from '../utils/TournamentRunner';
 import { BracketStorage, type SavedBracket } from '../utils/BracketStorage';
 import { URLBracketSharing } from '../utils/URLBracketSharing';
+import { BracketSharingAPI } from '../utils/BracketSharingAPI';
+import { TournamentAPI, type TournamentData } from '../utils/TournamentAPI';
 import { StorageOptimizer, type StorageUsage } from '../utils/StorageOptimizer';
 import type {
   TournamentType,
@@ -287,6 +289,11 @@ const currentBracketId = ref<string | null>(null);
 const loadedFromURL = ref<boolean>(false);
 const showAutoSaveNotice = ref<boolean>(false);
 const storageUsage = ref<StorageUsage | null>(null);
+
+// Database tournament state
+const currentTournamentId = ref<string | null>(null);
+const tournamentAPI = new TournamentAPI();
+const isUsingDatabase = ref<boolean>(false); // Track if current tournament is in database
 
 // Current match state
 const currentMatch = ref<ActiveMatch | null>(null);
@@ -394,7 +401,7 @@ function getUuidByTask(task: Participant): ParticipantUUID | null {
   return taskToUuidMap.value.get(task) || null;
 }
 
-function handleStartTournament(setupData: any) {
+async function handleStartTournament(setupData: any) {
   // Extract tournament data from setup
   tournamentName.value = setupData.tournamentName || 'Tournament';
   tournamentType.value = setupData.tournamentType || 'single';
@@ -431,15 +438,39 @@ function handleStartTournament(setupData: any) {
     currentPhase.value = 'matchups';
   }
 
-  // Auto-save the bracket
+  // Save to database (new approach)
   try {
-    saveBracket();
+    await saveTournamentToDatabase();
+    isUsingDatabase.value = true;
+    
+    // Update URL with tournament UUID
+    if (currentTournamentId.value) {
+      updateURLWithTournament(currentTournamentId.value);
+      
+      // Track this tournament as accessed
+      const tournamentData = {
+        tournamentName: tournamentName.value,
+        currentPhase: currentPhase.value,
+        csvData: tasks.value,
+        tournamentType: tournamentType.value,
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+      };
+      trackAccessedTournament(tournamentData, currentTournamentId.value);
+      loadSavedBrackets(); // Refresh the saved brackets list
+    }
   } catch (error) {
-    console.warn('Error auto-saving bracket:', error);
+    console.warn('Error saving to database, falling back to localStorage:', error);
+    // Fallback to localStorage
+    try {
+      saveBracket();
+    } catch (localError) {
+      console.warn('Error auto-saving bracket:', localError);
+    }
   }
 }
 
-function chooseWinner(winnerIndex: number) {
+async function chooseWinner(winnerIndex: number) {
   if (!tournament.value || !currentMatch.value) return;
 
   // Convert index to actual UUID (player1 and player2 are now UUIDs)
@@ -487,20 +518,28 @@ function chooseWinner(winnerIndex: number) {
     currentMatch.value = null;
     // Don't rebuild match history - we already have the correct data from active play
     // buildMatchHistoryFromTournament() should only be used when loading saved tournaments
-    // Save final bracket state
+    // Save final state
     try {
-      saveBracket();
+      if (isUsingDatabase.value) {
+        await saveTournamentToDatabase();
+      } else {
+        saveBracket();
+      }
     } catch (error) {
-      console.warn('Error saving bracket on completion:', error);
+      console.warn('Error saving tournament on completion:', error);
     }
   } else {
     // Get next match
     currentMatch.value = tournament.value.getNextMatch();
     // Auto-save progress periodically
     try {
-      saveBracket();
+      if (isUsingDatabase.value) {
+        await saveTournamentToDatabase();
+      } else {
+        saveBracket();
+      }
     } catch (error) {
-      console.warn('Error auto-saving bracket during play:', error);
+      console.warn('Error auto-saving tournament during play:', error);
     }
   }
 }
@@ -625,13 +664,17 @@ function exportResults() {
   }
 }
 
-function restartBracketology() {
-  // Save current bracket before restarting if needed
-  if (currentBracketId.value && tournament.value) {
+async function restartBracketology() {
+  // Save current state before restarting if needed
+  if (tournament.value) {
     try {
-      saveBracket();
+      if (isUsingDatabase.value && currentTournamentId.value) {
+        await saveTournamentToDatabase();
+      } else if (currentBracketId.value) {
+        saveBracket();
+      }
     } catch (error) {
-      console.warn('Error saving bracket on restart:', error);
+      console.warn('Error saving state on restart:', error);
     }
   }
 
@@ -644,8 +687,13 @@ function restartBracketology() {
   matchHistory.value = new Map();
   expandedTaskHistory.value = null;
   currentBracketId.value = null;
+  currentTournamentId.value = null;
   loadedFromURL.value = false;
   showAutoSaveNotice.value = false;
+  isUsingDatabase.value = false;
+
+  // Clear tournament from URL
+  clearTournamentFromURL();
 
   // Clear UUID mappings
   taskUuidMap.value.clear();
@@ -654,16 +702,64 @@ function restartBracketology() {
 }
 
 // Bracket management functions
-function loadSavedBrackets() {
-  savedBrackets.value = BracketStorage.getBracketsList();
+async function loadSavedBrackets() {
+  try {
+    // Get localStorage brackets (legacy)
+    const localBrackets = BracketStorage.getBracketsList();
+    
+    // Get browser-accessed tournament metadata
+    const accessedTournaments = getAccessedTournaments();
+    
+    // Combine and sort by last modified (most recent first)
+    const allBrackets = [...localBrackets, ...accessedTournaments].sort((a, b) => 
+      new Date(b.lastModified || b.createdAt).getTime() - 
+      new Date(a.lastModified || a.createdAt).getTime()
+    );
+    
+    savedBrackets.value = allBrackets;
+  } catch (error) {
+    console.warn('Error loading saved brackets:', error);
+    savedBrackets.value = BracketStorage.getBracketsList();
+  }
 }
 
-function loadBracket(bracketId: string) {
+async function loadBracket(bracketIdOrData: string | any) {
   try {
-    const bracketData = BracketStorage.loadBracket(bracketId);
-    if (!bracketData) {
-      alert('Bracket not found');
-      return;
+    let bracketData: any;
+    let bracketId: string | null = null;
+    
+    if (typeof bracketIdOrData === 'string') {
+      // Check if it's a database tournament first (UUIDs are typically longer)
+      if (bracketIdOrData.length > 20 && bracketIdOrData.includes('-')) {
+        try {
+          // Try loading from database
+          const tournamentResponse = await tournamentAPI.getTournament(bracketIdOrData);
+          bracketData = TournamentAPI.convertTournamentToBracket(tournamentResponse);
+          bracketId = null; // Don't use localStorage ID for database tournaments
+          currentTournamentId.value = bracketIdOrData;
+          isUsingDatabase.value = true;
+        } catch (error) {
+          console.warn('Failed to load from database, trying localStorage:', error);
+          // Fallback to localStorage
+          bracketData = BracketStorage.loadBracket(bracketIdOrData);
+          bracketId = bracketIdOrData;
+          if (!bracketData) {
+            alert('Tournament not found');
+            return;
+          }
+        }
+      } else {
+        // Loading from localStorage
+        bracketData = BracketStorage.loadBracket(bracketIdOrData);
+        bracketId = bracketIdOrData;
+        if (!bracketData) {
+          alert('Bracket not found');
+          return;
+        }
+      }
+    } else {
+      // Loading from URL or direct data
+      bracketData = bracketIdOrData;
     }
 
     const state = BracketStorage.deserializeBracket(bracketData);
@@ -690,6 +786,11 @@ function loadBracket(bracketId: string) {
       matchHistory.value = new Map();
     }
     currentBracketId.value = bracketId;
+    
+    // Update URL if we have a tournament ID
+    if (currentTournamentId.value) {
+      updateURLWithTournament(currentTournamentId.value);
+    }
 
     // Tournament instance already restored by deserializeBracket
     if (state.tournament) {
@@ -720,9 +821,59 @@ function loadBracket(bracketId: string) {
       buildMatchHistoryFromTournament();
       saveBracket(); // Update the bracket status
     }
+
+    // Track this tournament as accessed if it's from the database
+    if (currentTournamentId.value) {
+      trackAccessedTournament(bracketData, currentTournamentId.value);
+      loadSavedBrackets(); // Refresh the saved brackets list to show this tournament
+    }
   } catch (error) {
     console.error('Error loading bracket:', error);
     alert('Error loading bracket: ' + (error as Error).message);
+  }
+}
+
+async function saveTournamentToDatabase() {
+  try {
+    // Create tournament data object
+    const tournamentData: TournamentData = {
+      tournamentName: tournamentName.value,
+      currentPhase: currentPhase.value,
+      csvData: tasks.value,
+      csvDataUUID: tasks.value.map(task => getUuidByTask(task)!),
+      csvHeaders: selectedSecondaryFields.value,
+      taskNameColumn: taskNameColumn.value,
+      selectedSecondaryFields: selectedSecondaryFields.value,
+      tournamentType: tournamentType.value,
+      seedingMethod: 'order',
+      tasks: tasks.value,
+      tournament: tournament.value && typeof tournament.value.exportState === 'function'
+        ? tournament.value.exportState()
+        : null,
+      currentMatch: currentMatch.value,
+      matchHistory: matchHistory.value,
+    };
+
+    if (currentTournamentId.value) {
+      // Update existing tournament
+      await tournamentAPI.updateTournament(currentTournamentId.value, {
+        status: currentPhase.value,
+        data: tournamentData
+      });
+    } else {
+      // Create new tournament
+      const tournamentId = await tournamentAPI.createTournament(
+        tournamentName.value,
+        tournamentType.value,
+        tournamentData
+      );
+      currentTournamentId.value = tournamentId;
+    }
+
+    console.log('Tournament saved to database:', currentTournamentId.value);
+  } catch (error) {
+    console.error('Error saving tournament to database:', error);
+    throw error;
   }
 }
 
@@ -768,51 +919,71 @@ function saveBracket() {
   }
 }
 
-function deleteBracket(bracketId: string) {
+async function deleteBracket(bracketId: string) {
   if (
     confirm(
-      'Are you sure you want to delete this bracket? This action cannot be undone.'
+      'Are you sure you want to delete this tournament? This action cannot be undone.'
     )
   ) {
-    BracketStorage.deleteBracket(bracketId);
-    loadSavedBrackets();
-    updateStorageUsage();
-
-    if (currentBracketId.value === bracketId) {
-      currentBracketId.value = null;
+    try {
+      // Check if it's a database tournament (UUID format)
+      if (bracketId.length > 20 && bracketId.includes('-')) {
+        await tournamentAPI.deleteTournament(bracketId);
+        removeAccessedTournament(bracketId); // Remove from accessed list
+        if (currentTournamentId.value === bracketId) {
+          currentTournamentId.value = null;
+        }
+      } else {
+        // Delete from localStorage
+        BracketStorage.deleteBracket(bracketId);
+        if (currentBracketId.value === bracketId) {
+          currentBracketId.value = null;
+        }
+      }
+      
+      await loadSavedBrackets();
+      updateStorageUsage();
+    } catch (error) {
+      console.error('Error deleting tournament:', error);
+      alert('Error deleting tournament: ' + (error as Error).message);
     }
   }
 }
 
-function shareBracket(bracketId: string) {
+async function shareBracket(bracketId: string) {
   try {
-    const bracketData = BracketStorage.loadBracket(bracketId);
-    if (!bracketData) {
-      alert('Bracket not found');
-      return;
-    }
+    // Show loading state
+    console.log('Sharing tournament...');
 
-    const shareableURL = URLBracketSharing.createShareableURL(
-      bracketData as any
-    );
+    let shareResponse;
+
+    // Check if it's a database tournament (UUID format)
+    if (bracketId.length > 20 && bracketId.includes('-')) {
+      // Share database tournament
+      shareResponse = await tournamentAPI.shareTournament(bracketId, 30);
+    } else {
+      // Share localStorage bracket via API
+      const bracketData = BracketStorage.loadBracket(bracketId);
+      if (!bracketData) {
+        alert('Bracket not found');
+        return;
+      }
+
+      const api = new BracketSharingAPI();
+      shareResponse = await api.shareBracket(bracketData, 30);
+    }
 
     if (navigator.clipboard) {
-      navigator.clipboard
-        .writeText(shareableURL)
-        .then(() => {
-          alert(
-            'Bracket URL copied to clipboard! Share this link to let others view or continue this bracket.'
-          );
-        })
-        .catch(() => {
-          showURLDialog(shareableURL);
-        });
+      await navigator.clipboard.writeText(shareResponse.shareUrl);
+      alert(
+        `Tournament shared successfully!\n\nURL copied to clipboard: ${shareResponse.shareUrl}\n\nThis link will expire in ${shareResponse.expiresInDays} days.`
+      );
     } else {
-      showURLDialog(shareableURL);
+      showURLDialog(shareResponse.shareUrl);
     }
   } catch (error) {
-    console.error('Error sharing bracket:', error);
-    alert('Error creating shareable URL: ' + (error as Error).message);
+    console.error('Error sharing tournament:', error);
+    alert('Error sharing tournament: ' + (error as Error).message);
   }
 }
 
@@ -860,11 +1031,136 @@ function cleanupStorage() {
   }
 }
 
+// Browser-accessed tournament tracking
+const ACCESSED_TOURNAMENTS_KEY = 'taskseeder_accessed_tournaments';
+
+function getAccessedTournaments(): SavedBracket[] {
+  try {
+    const stored = localStorage.getItem(ACCESSED_TOURNAMENTS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.warn('Error reading accessed tournaments:', error);
+    return [];
+  }
+}
+
+function trackAccessedTournament(tournamentData: any, tournamentId: string) {
+  try {
+    const accessedTournaments = getAccessedTournaments();
+    
+    // Remove existing entry if it exists
+    const filteredTournaments = accessedTournaments.filter(t => t.id !== tournamentId);
+    
+    // Add/update tournament metadata
+    const tournamentMetadata: SavedBracket = {
+      id: tournamentId,
+      name: tournamentData.tournamentName || tournamentData.name || 'Unnamed Tournament',
+      status: tournamentData.currentPhase || tournamentData.status || 'setup',
+      tournamentType: tournamentData.tournamentType || 'single',
+      taskCount: (tournamentData.csvData || tournamentData.tasks || []).length,
+      createdAt: tournamentData.createdAt || new Date().toISOString(),
+      lastModified: tournamentData.lastModified || new Date().toISOString(),
+    };
+    
+    // Add to front of list (most recent first)
+    filteredTournaments.unshift(tournamentMetadata);
+    
+    // Keep only last 50 accessed tournaments
+    const limitedTournaments = filteredTournaments.slice(0, 50);
+    
+    localStorage.setItem(ACCESSED_TOURNAMENTS_KEY, JSON.stringify(limitedTournaments));
+  } catch (error) {
+    console.warn('Error tracking accessed tournament:', error);
+  }
+}
+
+function removeAccessedTournament(tournamentId: string) {
+  try {
+    const accessedTournaments = getAccessedTournaments();
+    const filteredTournaments = accessedTournaments.filter(t => t.id !== tournamentId);
+    localStorage.setItem(ACCESSED_TOURNAMENTS_KEY, JSON.stringify(filteredTournaments));
+  } catch (error) {
+    console.warn('Error removing accessed tournament:', error);
+  }
+}
+
 // Initialize saved brackets on mount
 onMounted(() => {
   loadSavedBrackets();
   updateStorageUsage();
+  
+  // Check for shared bracket in URL
+  checkForSharedBracket();
 });
+
+// URL management functions
+function updateURLWithTournament(tournamentId: string): void {
+  const newURL = `${window.location.origin}/tournament/${tournamentId}`;
+  window.history.replaceState({}, '', newURL);
+}
+
+function clearTournamentFromURL(): void {
+  const newURL = window.location.origin;
+  window.history.replaceState({}, '', newURL);
+}
+
+function extractTournamentIdFromURL(): string | null {
+  const path = window.location.pathname;
+  const match = path.match(/^\/tournament\/([a-f0-9-]+)$/i);
+  return match?.[1] ?? null;
+}
+
+async function checkForSharedBracket() {
+  try {
+    // Check for tournament UUID in URL (new approach)
+    const tournamentId = extractTournamentIdFromURL();
+    if (tournamentId) {
+      console.log('Loading tournament from URL:', tournamentId);
+      try {
+        const tournamentResponse = await tournamentAPI.getTournament(tournamentId);
+        const bracketData = TournamentAPI.convertTournamentToBracket(tournamentResponse);
+        
+        loadedFromURL.value = true;
+        isUsingDatabase.value = true;
+        currentTournamentId.value = tournamentId;
+        loadBracket(bracketData);
+        return;
+      } catch (error) {
+        console.warn('Failed to load tournament from URL:', error);
+        // Clear invalid tournament URL
+        clearTournamentFromURL();
+      }
+    }
+
+    // Check for new API-based shared brackets
+    const shareId = BracketSharingAPI.extractShareIdFromURL();
+    if (shareId) {
+      console.log('Loading shared bracket:', shareId);
+      const api = new BracketSharingAPI();
+      const sharedBracket = await api.getSharedBracket(shareId);
+      
+      loadedFromURL.value = true;
+      loadBracket(sharedBracket.bracketData);
+      
+      // Clear the URL after loading to avoid repeated loading
+      BracketSharingAPI.clearShareFromURL();
+      return;
+    }
+
+    // Fallback: Check for legacy URL-based shared brackets
+    const bracketData = URLBracketSharing.extractBracketFromCurrentURL();
+    if (bracketData) {
+      loadedFromURL.value = true;
+      loadBracket(bracketData);
+      
+      // Clear the URL parameter after loading to avoid repeated loading
+      URLBracketSharing.clearBracketFromURL();
+    }
+  } catch (error) {
+    console.error('Error loading shared bracket:', error);
+    alert('Error loading shared bracket: ' + (error as Error).message);
+  }
+}
 </script>
 
 <style scoped>

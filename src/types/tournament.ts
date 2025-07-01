@@ -22,6 +22,7 @@ export interface TournamentOptions {
   progressCallback?: ((progress: any) => void) | null;
   taskNameColumn?: string;
   seedingMethod?: SeedingMethod;
+  preserveOrder?: boolean; // Skip seeding and use exact order provided (for restoration)
 }
 
 export interface ActiveMatch {

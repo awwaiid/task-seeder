@@ -4,9 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
+### Frontend Development
 - `npm run dev` - Start Vite development server
-- `npm run build` - Build for production
+- `npm run build` - Build frontend for production
 - `npm run preview` - Preview production build
+
+### Backend Development  
+- `npm run server:dev` - Start server in development mode with auto-reload
+- `npm run build:server` - Build server TypeScript to JavaScript
+- `npm start` - Start production server (build frontend + run server)
+
+### Testing
 - `npm test` - Run unit tests with Vitest
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Run tests with coverage
@@ -19,7 +27,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Application Architecture
 
-**TaskSeeder** is a Vue 3 application offering multiple ranking algorithms to prioritize tasks through head-to-head comparisons. Users upload CSV files and choose from tournament brackets, double elimination, or QuickSort-based ranking methods.
+**TaskSeeder** is a full-stack application with Vue 3 frontend and Express.js backend, offering multiple ranking algorithms to prioritize tasks through head-to-head comparisons. Users upload CSV files and choose from tournament brackets, double elimination, or QuickSort-based ranking methods. All tournaments are persisted in SQLite database with UUID-based storage.
 
 ### Core Components Structure
 
@@ -31,22 +39,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Key Utilities
 
+#### Frontend
 - **TournamentRunner.ts**: Tournament logic engine with multiple algorithms:
   - Single/Double elimination tournaments using `tournament-pairings` library
   - QuickSort-based ranking with divide-and-conquer comparisons
-- **BracketStorage.js**: LocalStorage persistence with compression and optimization
-- **URLBracketSharing.js**: URL-based bracket sharing with encoding/compression
+- **TournamentAPI.ts**: API client for database tournament persistence
+- **BracketSharingAPI.ts**: API client for bracket sharing functionality
+- **BracketStorage.js**: LocalStorage persistence (legacy fallback)
+- **URLBracketSharing.js**: URL-based bracket sharing (legacy fallback)
 - **StorageOptimizer.js**: Storage usage monitoring and automatic cleanup
+
+#### Backend
+- **server/index.ts**: Express.js server serving both frontend and API
+- **server/database.ts**: SQLite database operations for tournaments and shared brackets
+- **server/routes/tournaments.ts**: Tournament CRUD API endpoints
+- **server/routes/brackets.ts**: Bracket sharing API endpoints
 
 ### Data Flow Architecture
 
 1. **Setup**: CSV upload → PapaParse → auto-detect columns → select algorithm (Tournament/Double/QuickSort)
-2. **Ranking**: Create algorithm instance → present strategic matchups → collect results → track history
-3. **Results**: Display final rankings → export CSV → share via compressed URLs
+2. **Persistence**: Save tournament with UUID to SQLite database via API
+3. **Ranking**: Create algorithm instance → present strategic matchups → collect results → auto-save progress
+4. **Results**: Display final rankings → export CSV → share via database-backed URLs
 
 ### Storage System
 
-Multi-layer approach: in-memory algorithm state, LocalStorage persistence with debounced auto-save (10s intervals), and URL encoding for sharing. Large datasets (>storage quota) skip auto-save to prevent quota errors. All three algorithms (Tournament/Double/QuickSort) use the same storage system.
+**Primary Storage (Database)**:
+- SQLite database for all new tournaments with UUID-based identification
+- Automatic persistence on tournament start, progress updates, and completion
+- JSON storage of complete tournament state (tasks, matches, history, configuration)
+- Database-backed sharing with expiration (30 days default)
+
+**Fallback Storage (Legacy)**:
+- LocalStorage persistence for compatibility with older tournaments
+- URL-based sharing for smaller brackets (with size limitations)
+- Automatic fallback if database operations fail
+
+**Tournament Lifecycle**:
+1. Tournament created → Save to database with UUID
+2. Match completed → Auto-save progress to database
+3. Tournament finished → Final state saved to database
+4. Sharing → Create database-backed shareable link
 
 ### Performance Optimizations
 

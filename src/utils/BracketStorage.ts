@@ -31,22 +31,23 @@ interface TournamentState {
 
 export interface BracketData {
   id?: string;
-  version: string;
+  version?: string;
   name: string;
   status: string;
-  csvData: Participant[];
-  csvDataUUID: ParticipantUUID[]; // ParticipantUUIDs corresponding 1:1 with csvData
-  csvHeaders: string[];
-  taskNameColumn: string;
-  selectedSecondaryFields: string[];
+  csvData?: Participant[];
+  csvDataUUID?: ParticipantUUID[]; // ParticipantUUIDs corresponding 1:1 with csvData
+  csvHeaders?: string[];
+  taskNameColumn?: string;
+  selectedSecondaryFields?: string[];
   tournamentType: string;
-  seedingMethod: string;
-  tasks: Participant[];
-  tournament: any;
-  currentMatch: any;
-  matchHistory: any[];
+  seedingMethod?: string;
+  tasks?: Participant[];
+  tournament?: any;
+  currentMatch?: any;
+  matchHistory?: any[];
   createdAt: string;
-  lastModified: string;
+  lastModified?: string;
+  taskCount?: number;
 }
 
 export type SavedBracket = BracketData;
@@ -151,7 +152,7 @@ export class BracketStorage {
     const brackets = this.getAllBrackets();
     return Object.values(brackets).sort(
       (a, b) =>
-        new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+        new Date(b.lastModified || b.createdAt).getTime() - new Date(a.lastModified || a.createdAt).getTime()
     );
   }
 
@@ -210,7 +211,7 @@ export class BracketStorage {
       try {
         state.tournament = Tournament.fromStoredState(state.tournament, {
           ...options,
-          taskNameColumn: bracketData.taskNameColumn,
+          taskNameColumn: bracketData.taskNameColumn || 'task',
         });
         state.tasks = bracketData.csvData; // Tasks are just the participants
         state.currentMatch = null; // Current match is managed by tournament-organizer

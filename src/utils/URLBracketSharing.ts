@@ -216,11 +216,16 @@ export class URLBracketSharing {
   }
 
   static extractBracketFromCurrentURL(): BracketData | null {
-    const urlParams = new URLSearchParams(window.location.search);
-    const bracketParam = urlParams.get('bracket');
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const bracketParam = urlParams.get('bracket');
 
-    if (bracketParam) {
-      return this.decodeBracketFromURL(bracketParam);
+      if (bracketParam) {
+        return this.decodeBracketFromURL(bracketParam);
+      }
+    } catch (error) {
+      console.error('Error extracting bracket from URL:', error);
+      return null;
     }
 
     return null;
