@@ -134,7 +134,7 @@ test('upload CSV file and start tournament', async ({ page }) => {
     matchCount++;
 
     // Wait for UI to update - either next match or results
-    await page.waitForTimeout(500); // Brief wait for state to update
+    await page.waitForTimeout(100);
   }
 
   // Verify tournament is complete
