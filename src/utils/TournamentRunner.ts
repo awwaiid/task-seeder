@@ -382,10 +382,11 @@ export class Tournament {
 
       console.log('Restoring tournament from saved state');
 
-      // Restore the complete tournament state directly
+      // Use the saved tournament state to replay matches on the fresh tournament
+      // This preserves all the tournament-organizer methods while restoring the exact state
       const savedTournamentState = state.tournamentState;
-      if (savedTournamentState) {
-        console.log('Restoring saved tournament state:', {
+      if (savedTournamentState && savedTournamentState.matches) {
+        console.log('Restoring tournament by replaying matches:', {
           hasMatches: !!savedTournamentState.matches,
           matchesCount: savedTournamentState.matches?.length || 0,
           hasPlayers: !!savedTournamentState.players,
@@ -393,27 +394,72 @@ export class Tournament {
           status: savedTournamentState.status,
         });
 
-        // Restore specific state properties while preserving tournament methods
-        tournament.tournament.id = savedTournamentState.id;
-        tournament.tournament.name = savedTournamentState.name;
-        tournament.tournament.status = savedTournamentState.status;
-        tournament.tournament.round = savedTournamentState.round;
-        tournament.tournament.players = savedTournamentState.players;
-        tournament.tournament.matches = savedTournamentState.matches;
-        tournament.tournament.seating = savedTournamentState.seating;
-        tournament.tournament.sorting = savedTournamentState.sorting;
-        tournament.tournament.scoring = savedTournamentState.scoring;
-        tournament.tournament.stageOne = savedTournamentState.stageOne;
-        tournament.tournament.stageTwo = savedTournamentState.stageTwo;
-        tournament.tournament.meta = savedTournamentState.meta;
-        
-        // Ensure the manager is aware of the restored tournament
-        (tournament.manager as any).tournaments = (tournament.manager as any).tournaments || {};
-        (tournament.manager as any).tournaments[tournament.tournamentId] = tournament.tournament;
+        // Get completed matches from the saved state
+        const completedMatches = savedTournamentState.matches.filter(
+          (match: any) =>
+            !match.active &&
+            match.player1?.id &&
+            match.player2?.id &&
+            typeof match.player1.win === 'number' &&
+            typeof match.player2.win === 'number'
+        ).sort((a: any, b: any) => a.round - b.round || a.match - b.match);
 
-        console.log('Tournament state restored successfully');
+        console.log('Found completed matches to replay:', completedMatches.length);
+
+        // Replay each completed match using exact match IDs
+        for (const savedMatch of completedMatches) {
+          // Find the corresponding match by exact match structure
+          const currentMatch = tournament.tournament.matches.find((m: any) => {
+            // Match by players and round
+            return (
+              m.round === savedMatch.round &&
+              ((m.player1?.id === savedMatch.player1.id && m.player2?.id === savedMatch.player2.id) ||
+               (m.player1?.id === savedMatch.player2.id && m.player2?.id === savedMatch.player1.id))
+            );
+          });
+
+          if (currentMatch) {
+            try {
+              // Determine the correct win values based on player order
+              let player1Win = savedMatch.player1.win || 0;
+              let player2Win = savedMatch.player2.win || 0;
+              
+              // If players are in reverse order, swap the win counts
+              if (currentMatch.player1?.id === savedMatch.player2.id) {
+                player1Win = savedMatch.player2.win || 0;
+                player2Win = savedMatch.player1.win || 0;
+              }
+              
+              tournament.tournament.enterResult(
+                currentMatch.id,
+                player1Win,
+                player2Win,
+                savedMatch.player1.draw || 0
+              );
+              
+              console.log('Successfully replayed match:', {
+                matchId: currentMatch.id,
+                round: savedMatch.round,
+                player1: currentMatch.player1?.id,
+                player2: currentMatch.player2?.id,
+                player1Win,
+                player2Win
+              });
+            } catch (error) {
+              console.warn('Error replaying match result:', error, savedMatch);
+            }
+          } else {
+            console.warn('Could not find match to replay:', {
+              round: savedMatch.round,
+              player1: savedMatch.player1.id,
+              player2: savedMatch.player2.id
+            });
+          }
+        }
+
+        console.log('Tournament restoration completed, status:', tournament.tournament.status);
       } else {
-        console.warn('No saved tournament state found, using fresh tournament');
+        console.log('No matches to replay, using fresh tournament');
       }
 
       return tournament;

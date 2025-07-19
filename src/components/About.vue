@@ -189,7 +189,6 @@ defineEmits<{
 
 <style scoped>
 .about-page {
-  max-width: 1200px;
   margin: 0 auto;
   line-height: 1.7;
 }
