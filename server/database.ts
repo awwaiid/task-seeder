@@ -1,5 +1,4 @@
 import sqlite3 from 'sqlite3';
-import { promisify } from 'util';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -36,12 +35,13 @@ export class Database {
       process.env.NODE_ENV === 'production'
         ? path.join(process.cwd(), 'data')
         : __dirname;
-    
+
     // Use separate database files for testing to avoid conflicts
-    const dbName = process.env.NODE_ENV === 'test' || process.env.CI
-      ? `taskseeder-test-${process.pid}-${Date.now()}.db`
-      : 'taskseeder.db';
-    
+    const dbName =
+      process.env.NODE_ENV === 'test' || process.env.CI
+        ? `taskseeder-test-${process.pid}-${Date.now()}.db`
+        : 'taskseeder.db';
+
     this.dbPath = path.join(dataDir, dbName);
   }
 
@@ -270,7 +270,7 @@ export class Database {
       const db = this.db!;
       db.serialize(() => {
         db.run('BEGIN TRANSACTION');
-        
+
         db.run(
           query,
           [
@@ -288,7 +288,7 @@ export class Database {
               db.run('ROLLBACK');
               reject(err);
             } else {
-              db.run('COMMIT', (commitErr) => {
+              db.run('COMMIT', commitErr => {
                 if (commitErr) {
                   console.error('Error committing tournament save:', commitErr);
                   reject(commitErr);

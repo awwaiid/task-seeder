@@ -221,7 +221,7 @@ export class Tournament {
     const complete =
       this.tournament.status === 'complete' ||
       (this.tournament.status === 'stage-one' && allMatchesComplete);
-    
+
     return complete;
   }
 
@@ -498,14 +498,16 @@ export class Tournament {
       if (savedTournamentState) {
         // COMPLETE REPLACEMENT: Instead of patching a fresh tournament,
         // directly restore the saved tournament object state
-        
+
         // Create a minimal wrapper object that preserves the saved tournament data
         // but provides the minimal interface needed by our Tournament class
         const restoredTournamentObject = {
           ...savedTournamentState,
           // Add minimal methods that might be needed
-          createPlayer: function() { /* no-op for restored tournaments */ },
-          enterResult: function(matchId: any, p1wins: number, p2wins: number) {
+          createPlayer: function () {
+            /* no-op for restored tournaments */
+          },
+          enterResult: function (matchId: any, p1wins: number, p2wins: number) {
             // Find and update the match
             const match = this.matches.find((m: any) => m.id === matchId);
             if (match) {
@@ -520,15 +522,18 @@ export class Tournament {
               }
             }
           },
-          end: function() {
+          end: function () {
             this.status = 'complete';
-          }
+          },
         };
-        
+
         tournament.tournament = restoredTournamentObject;
-        tournament.tournamentId = savedTournamentState.id || tournament.tournamentId;
+        tournament.tournamentId =
+          savedTournamentState.id || tournament.tournamentId;
       } else {
-        throw new Error('No tournament state found in saved data - cannot restore tournament');
+        throw new Error(
+          'No tournament state found in saved data - cannot restore tournament'
+        );
       }
 
       return tournament;
@@ -554,7 +559,7 @@ export class Tournament {
     uuids: ParticipantUUID[],
     seedingMethod: SeedingMethod
   ): ParticipantUUID[] {
-    console.log("Applying seeding method: ", seedingMethod);
+    console.log('Applying seeding method: ', seedingMethod);
     switch (seedingMethod) {
       case 'random': {
         // Create a copy and shuffle it

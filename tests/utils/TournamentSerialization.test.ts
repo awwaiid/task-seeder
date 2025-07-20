@@ -365,7 +365,7 @@ describe('Tournament Serialization Round Trip', () => {
 
       if (match) {
         tournament.reportResult(match, mockTaskUUIDs[0]!);
-        
+
         // Get the next match if available
         const secondMatch = tournament.getNextMatch();
         if (secondMatch) {
@@ -377,20 +377,31 @@ describe('Tournament Serialization Round Trip', () => {
       const exportedState = tournament.exportState();
 
       // Restore tournament from state using static method
-      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
-        taskNameColumn: 'name',
-        seedingMethod: 'order',
-      });
+      const actualRestored = (tournament.constructor as any).fromStoredState(
+        exportedState,
+        {
+          taskNameColumn: 'name',
+          seedingMethod: 'order',
+        }
+      );
 
       // Compare all properties that should be identical
       expect(actualRestored.type).toBe(tournament.type);
-      expect(actualRestored.originalEntrants).toEqual(tournament.originalEntrants);
+      expect(actualRestored.originalEntrants).toEqual(
+        tournament.originalEntrants
+      );
       expect(actualRestored.taskNameColumn).toBe(tournament.taskNameColumn);
       expect(actualRestored.isComplete()).toBe(tournament.isComplete());
-      expect(actualRestored.getCurrentMatchNumber()).toBe(tournament.getCurrentMatchNumber());
-      expect(actualRestored.getTotalMatches()).toBe(tournament.getTotalMatches());
+      expect(actualRestored.getCurrentMatchNumber()).toBe(
+        tournament.getCurrentMatchNumber()
+      );
+      expect(actualRestored.getTotalMatches()).toBe(
+        tournament.getTotalMatches()
+      );
       expect(actualRestored.getTotalRounds()).toBe(tournament.getTotalRounds());
-      expect(actualRestored.remainingParticipants).toEqual(tournament.remainingParticipants);
+      expect(actualRestored.remainingParticipants).toEqual(
+        tournament.remainingParticipants
+      );
 
       // If tournament is complete, rankings should match
       if (tournament.isComplete()) {
@@ -400,8 +411,10 @@ describe('Tournament Serialization Round Trip', () => {
 
       // Match history should be preserved for each participant
       for (const participantId of mockTaskUUIDs) {
-        const originalHistory = tournament.getMatchHistoryForParticipant(participantId);
-        const restoredHistory = actualRestored.getMatchHistoryForParticipant(participantId);
+        const originalHistory =
+          tournament.getMatchHistoryForParticipant(participantId);
+        const restoredHistory =
+          actualRestored.getMatchHistoryForParticipant(participantId);
         expect(restoredHistory).toEqual(originalHistory);
       }
     });
@@ -430,24 +443,35 @@ describe('Tournament Serialization Round Trip', () => {
       const exportedState = tournament.exportState();
 
       // Restore tournament from state using static method
-      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
-        taskNameColumn: 'name',
-        seedingMethod: 'order',
-      });
+      const actualRestored = (tournament.constructor as any).fromStoredState(
+        exportedState,
+        {
+          taskNameColumn: 'name',
+          seedingMethod: 'order',
+        }
+      );
 
       // Compare all properties
       expect(actualRestored.type).toBe(tournament.type);
-      expect(actualRestored.originalEntrants).toEqual(tournament.originalEntrants);
+      expect(actualRestored.originalEntrants).toEqual(
+        tournament.originalEntrants
+      );
       expect(actualRestored.taskNameColumn).toBe(tournament.taskNameColumn);
       expect(actualRestored.isComplete()).toBe(tournament.isComplete());
-      expect(actualRestored.getCurrentMatchNumber()).toBe(tournament.getCurrentMatchNumber());
-      expect(actualRestored.getTotalMatches()).toBe(tournament.getTotalMatches());
-      expect(actualRestored.remainingParticipants).toEqual(tournament.remainingParticipants);
+      expect(actualRestored.getCurrentMatchNumber()).toBe(
+        tournament.getCurrentMatchNumber()
+      );
+      expect(actualRestored.getTotalMatches()).toBe(
+        tournament.getTotalMatches()
+      );
+      expect(actualRestored.remainingParticipants).toEqual(
+        tournament.remainingParticipants
+      );
 
       // Verify next match is the same
       const originalNext = tournament.getNextMatch();
       const restoredNext = actualRestored.getNextMatch();
-      
+
       if (originalNext && restoredNext) {
         expect(restoredNext.round).toBe(originalNext.round);
         expect(restoredNext.bracket).toBe(originalNext.bracket);
@@ -483,29 +507,46 @@ describe('Tournament Serialization Round Trip', () => {
       const exportedState = tournament.exportState();
 
       // Restore tournament from state using static method
-      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
-        taskNameColumn: 'name',
-        seedingMethod: 'order',
-      });
+      const actualRestored = (tournament.constructor as any).fromStoredState(
+        exportedState,
+        {
+          taskNameColumn: 'name',
+          seedingMethod: 'order',
+        }
+      );
 
       // Compare all properties
       expect(actualRestored.type).toBe(tournament.type);
-      expect(actualRestored.originalEntrants).toEqual(tournament.originalEntrants);
+      expect(actualRestored.originalEntrants).toEqual(
+        tournament.originalEntrants
+      );
       expect(actualRestored.taskNameColumn).toBe(tournament.taskNameColumn);
       expect(actualRestored.isComplete()).toBe(tournament.isComplete());
-      expect(actualRestored.getCurrentMatchNumber()).toBe(tournament.getCurrentMatchNumber());
-      expect(actualRestored.getTotalMatches()).toBe(tournament.getTotalMatches());
-      expect(actualRestored.remainingParticipants).toEqual(tournament.remainingParticipants);
+      expect(actualRestored.getCurrentMatchNumber()).toBe(
+        tournament.getCurrentMatchNumber()
+      );
+      expect(actualRestored.getTotalMatches()).toBe(
+        tournament.getTotalMatches()
+      );
+      expect(actualRestored.remainingParticipants).toEqual(
+        tournament.remainingParticipants
+      );
 
       // Verify internal state for QuickSort
-      expect((actualRestored as any).participants).toEqual((tournament as any).participants);
-      expect((actualRestored as any).completedComparisons).toBe((tournament as any).completedComparisons);
-      expect((actualRestored as any).comparisonResults.size).toBe((tournament as any).comparisonResults.size);
+      expect((actualRestored as any).participants).toEqual(
+        (tournament as any).participants
+      );
+      expect((actualRestored as any).completedComparisons).toBe(
+        (tournament as any).completedComparisons
+      );
+      expect((actualRestored as any).comparisonResults.size).toBe(
+        (tournament as any).comparisonResults.size
+      );
 
       // Verify next match is the same
       const originalNext = tournament.getNextMatch();
       const restoredNext = actualRestored.getNextMatch();
-      
+
       if (originalNext && restoredNext) {
         expect([restoredNext.player1, restoredNext.player2].sort()).toEqual(
           [originalNext.player1, originalNext.player2].sort()
@@ -525,7 +566,7 @@ describe('Tournament Serialization Round Trip', () => {
       // Complete the tournament
       const match = tournament.getNextMatch();
       expect(match).toBeTruthy();
-      
+
       if (match) {
         tournament.reportResult(match, mockTaskUUIDs[0]!);
       }
@@ -538,10 +579,13 @@ describe('Tournament Serialization Round Trip', () => {
       expect((exportedState as any).finalResults).toBeDefined();
 
       // Restore tournament from state using static method
-      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
-        taskNameColumn: 'name',
-        seedingMethod: 'order',
-      });
+      const actualRestored = (tournament.constructor as any).fromStoredState(
+        exportedState,
+        {
+          taskNameColumn: 'name',
+          seedingMethod: 'order',
+        }
+      );
 
       // Verify completion state
       expect(actualRestored.isComplete()).toBe(true);
@@ -550,7 +594,10 @@ describe('Tournament Serialization Round Trip', () => {
       expect(actualRestored.getNextMatch()).toBeNull();
 
       // Final results should be identical
-      expect(actualRestored.getRankings()).toEqual([mockTaskUUIDs[0], mockTaskUUIDs[1]]);
+      expect(actualRestored.getRankings()).toEqual([
+        mockTaskUUIDs[0],
+        mockTaskUUIDs[1],
+      ]);
       expect(actualRestored.getWinner()).toBe(mockTaskUUIDs[0]);
     });
 
@@ -563,14 +610,14 @@ describe('Tournament Serialization Round Trip', () => {
 
       const allMatches = [];
       let match = tournament.getNextMatch();
-      
+
       while (match) {
         allMatches.push({
           round: match.round,
           player1: match.player1,
           player2: match.player2,
         });
-        
+
         // Always choose first player as winner for consistency
         tournament.reportResult(match, match.player1!);
         match = tournament.getNextMatch();
@@ -580,10 +627,13 @@ describe('Tournament Serialization Round Trip', () => {
 
       // Export and restore
       const exportedState = tournament.exportState();
-      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
-        taskNameColumn: 'name',
-        seedingMethod: 'order',
-      });
+      const actualRestored = (tournament.constructor as any).fromStoredState(
+        exportedState,
+        {
+          taskNameColumn: 'name',
+          seedingMethod: 'order',
+        }
+      );
 
       // Verify all completed matches are preserved
       const originalMatches = tournament.matches;
@@ -595,7 +645,7 @@ describe('Tournament Serialization Round Trip', () => {
       for (let i = 0; i < originalMatches.length; i++) {
         const orig = originalMatches[i];
         const restored = restoredMatches[i];
-        
+
         expect(restored.winner).toBe(orig.winner);
         expect(restored.loser).toBe(orig.loser);
         expect(restored.player1).toBe(orig.player1);

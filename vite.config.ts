@@ -15,17 +15,17 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
-        configure: (proxy, options) => {
+        configure: (proxy, _options) => {
           // Log proxy requests in development
-          proxy.on('error', (err, req, res) => {
+          proxy.on('error', (err, _req, _res) => {
             console.log('Proxy error:', err);
           });
-          proxy.on('proxyReq', (proxyReq, req, res) => {
+          proxy.on('proxyReq', (_proxyReq, req, _res) => {
             console.log('Proxying request:', req.method, req.url);
           });
-        }
-      }
-    }
+        },
+      },
+    },
   },
   test: {
     globals: true,

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { Database, Tournament } from '../database.js';
+import { Database } from '../database.js';
 
 export function TournamentRouter(db: Database) {
   const router = express.Router();

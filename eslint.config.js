@@ -10,6 +10,7 @@ export default [
   {
     ignores: [
       '**/dist/**',
+      '**/dist-server/**',
       '**/dist-ssr/**',
       '**/coverage/**',
       '**/node_modules/**',
