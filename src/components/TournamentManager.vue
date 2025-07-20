@@ -234,7 +234,7 @@
           class="accent"
           @click="restartBracketology"
         >
-          Start New Tournament
+          Home
         </button>
       </div>
     </div>
