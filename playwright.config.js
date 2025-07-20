@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 1, // Force single worker to avoid database conflicts
+  workers: 5,
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3000',
