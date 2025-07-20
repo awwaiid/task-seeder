@@ -333,9 +333,10 @@ const _totalUserVisibleMatches = computed(() => {
   return tournament.value.getTotalMatches();
 });
 
-// Export for testing
+// Export for testing and parent component access
 defineExpose({
   _totalUserVisibleMatches,
+  restartBracketology,
 });
 
 // Final results
