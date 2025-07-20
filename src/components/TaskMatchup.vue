@@ -25,9 +25,21 @@
         <div class="task-details">
           <div v-for="field in selectedFields" :key="field" class="task-field">
             <span class="task-field-label">{{ field }}:</span>
-            <span class="task-field-value">{{
-              leftTask ? leftTask[field] || 'N/A' : 'No data'
-            }}</span>
+            <span class="task-field-value">
+              <a
+                v-if="leftTask && isUrl(leftTask[field])"
+                :href="leftTask[field]"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="task-field-url"
+                @click.stop
+              >
+                {{ leftTask[field] }}
+              </a>
+              <span v-else>{{
+                leftTask ? leftTask[field] || 'N/A' : 'No data'
+              }}</span>
+            </span>
           </div>
           <div
             v-if="selectedFields.length === 0"
@@ -47,9 +59,21 @@
         <div class="task-details">
           <div v-for="field in selectedFields" :key="field" class="task-field">
             <span class="task-field-label">{{ field }}:</span>
-            <span class="task-field-value">{{
-              rightTask ? rightTask[field] || 'N/A' : 'No data'
-            }}</span>
+            <span class="task-field-value">
+              <a
+                v-if="rightTask && isUrl(rightTask[field])"
+                :href="rightTask[field]"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="task-field-url"
+                @click.stop
+              >
+                {{ rightTask[field] }}
+              </a>
+              <span v-else>{{
+                rightTask ? rightTask[field] || 'N/A' : 'No data'
+              }}</span>
+            </span>
           </div>
           <div
             v-if="selectedFields.length === 0"
@@ -93,6 +117,11 @@ const rightTask = computed(() =>
 function getTaskTitle(task: Task | null): string {
   if (!task) return 'BYE';
   return task[props.taskNameColumn] || 'Untitled Task';
+}
+
+function isUrl(value: any): boolean {
+  if (typeof value !== 'string') return false;
+  return value.startsWith('http://') || value.startsWith('https://');
 }
 
 function chooseWinner(visualSideIndex: number): void {
@@ -149,3 +178,19 @@ onMounted(() => {
   }
 });
 </script>
+
+<style scoped>
+.task-field-url {
+  color: #3498db;
+  text-decoration: underline;
+}
+
+.task-field-url:hover {
+  color: #2980b9;
+  text-decoration: underline;
+}
+
+.task-field-url:visited {
+  color: #8e44ad;
+}
+</style>
