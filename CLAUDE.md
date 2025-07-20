@@ -5,14 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Frontend Development
-- `npm run dev` - Start Vite development server
+- `npm run dev` - Start Vite development server (frontend only, no database/UUID support)
+- `npm run dev:full` - Start full-stack development (frontend + backend with database/UUID support)
 - `npm run build` - Build frontend for production
-- `npm run preview` - Preview production build
+- `npm run preview` - Preview production build (frontend only)
 
 ### Backend Development  
 - `npm run server:dev` - Start server in development mode with auto-reload
 - `npm run build:server` - Build server TypeScript to JavaScript
 - `npm start` - Start production server (build frontend + run server)
+
+### Database & UUID Support
+- **Full-stack mode**: `npm run dev:full` or `npm start` - Includes database persistence and UUID-based tournament URLs
+- **Frontend-only mode**: `npm run dev` or `npm run preview` - Uses localStorage fallback, no UUID URLs
 
 ### Testing
 - `npm test` - Run unit tests with Vitest
@@ -24,6 +29,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Workflow Notes
 
 - I am already running `npm run dev` in another tab, you don't need to run it
+- **Note**: For UUID-based tournament URLs and database persistence, use `npm run dev:full` instead of `npm run dev`
+- The e2e tests run against the full-stack server (`npm start`) to test all features including UUID persistence
 
 ## Application Architecture
 

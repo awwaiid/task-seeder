@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "concurrently \"npm run server:dev\" \"npm run dev\"",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "start": "npm run build && node dist-server/index.js",
@@ -48,6 +49,7 @@
     "@typescript-eslint/parser": "^8.33.1",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vue/test-utils": "^2.4.6",
+    "concurrently": "^8.2.2",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-prettier": "^5.4.1",
