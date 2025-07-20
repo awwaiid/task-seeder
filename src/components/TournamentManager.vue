@@ -293,7 +293,6 @@ const storageUsage = ref<StorageUsage | null>(null);
 // Database tournament state
 const currentTournamentId = ref<string | null>(null);
 const tournamentAPI = new TournamentAPI();
-const isUsingDatabase = ref<boolean>(false); // Track if current tournament is in database
 
 // Current match state
 const currentMatch = ref<ActiveMatch | null>(null);
@@ -442,7 +441,6 @@ async function handleStartTournament(setupData: any) {
   // Save to database (new approach)
   try {
     await saveTournamentToDatabase();
-    isUsingDatabase.value = true;
 
     // Update URL with tournament UUID
     if (currentTournamentId.value) {
@@ -461,16 +459,12 @@ async function handleStartTournament(setupData: any) {
       loadSavedBrackets(); // Refresh the saved brackets list
     }
   } catch (error) {
-    console.warn(
-      'Error saving to database, falling back to localStorage:',
-      error
+    console.error('Database save failed during tournament creation:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    alert(
+      `Failed to save tournament to database: ${errorMessage}. Please try again.`
     );
-    // Fallback to localStorage
-    try {
-      saveBracket();
-    } catch (localError) {
-      console.warn('Error auto-saving bracket:', localError);
-    }
+    throw error;
   }
 }
 
@@ -524,26 +518,20 @@ async function chooseWinner(winnerIndex: number) {
     // buildMatchHistoryFromTournament() should only be used when loading saved tournaments
     // Save final state
     try {
-      if (isUsingDatabase.value) {
-        await saveTournamentToDatabase();
-      } else {
-        saveBracket();
-      }
+      await saveTournamentToDatabase();
     } catch (error) {
-      console.warn('Error saving tournament on completion:', error);
+      console.error('Error saving tournament on completion:', error);
+      // Final save failure is logged but doesn't break the results display
     }
   } else {
     // Get next match
     currentMatch.value = tournament.value.getNextMatch();
     // Auto-save progress periodically
     try {
-      if (isUsingDatabase.value) {
-        await saveTournamentToDatabase();
-      } else {
-        saveBracket();
-      }
+      await saveTournamentToDatabase();
     } catch (error) {
-      console.warn('Error auto-saving tournament during play:', error);
+      console.error('Error auto-saving tournament during play:', error);
+      // Auto-save failure shouldn't stop tournament play, but log the error
     }
   }
 }
@@ -670,13 +658,9 @@ function exportResults() {
 
 async function restartBracketology() {
   // Save current state before restarting if needed
-  if (tournament.value) {
+  if (tournament.value && currentTournamentId.value) {
     try {
-      if (isUsingDatabase.value && currentTournamentId.value) {
-        await saveTournamentToDatabase();
-      } else if (currentBracketId.value) {
-        saveBracket();
-      }
+      await saveTournamentToDatabase();
     } catch (error) {
       console.warn('Error saving state on restart:', error);
     }
@@ -694,7 +678,6 @@ async function restartBracketology() {
   currentTournamentId.value = null;
   loadedFromURL.value = false;
   showAutoSaveNotice.value = false;
-  isUsingDatabase.value = false;
 
   // Clear tournament from URL
   clearTournamentFromURL();
@@ -744,7 +727,6 @@ async function loadBracket(bracketIdOrData: string | any) {
             TournamentAPI.convertTournamentToBracket(tournamentResponse);
           bracketId = null; // Don't use localStorage ID for database tournaments
           currentTournamentId.value = bracketIdOrData;
-          isUsingDatabase.value = true;
         } catch (error) {
           console.warn(
             'Failed to load from database, trying localStorage:',
@@ -829,7 +811,7 @@ async function loadBracket(bracketIdOrData: string | any) {
     ) {
       currentPhase.value = 'results';
       buildMatchHistoryFromTournament();
-      saveBracket(); // Update the bracket status
+      // Status will be updated through normal database save flow
     }
 
     // Track this tournament as accessed if it's from the database
@@ -1147,7 +1129,6 @@ async function checkForSharedBracket() {
           TournamentAPI.convertTournamentToBracket(tournamentResponse);
 
         loadedFromURL.value = true;
-        isUsingDatabase.value = true;
         currentTournamentId.value = tournamentId;
         loadBracket(bracketData);
         return;

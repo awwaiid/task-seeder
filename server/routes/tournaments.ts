@@ -62,6 +62,31 @@ export function TournamentRouter(db: Database) {
     }
   });
 
+  // Cleanup endpoint for testing (only available in test environment)
+  router.delete('/', async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV !== 'test') {
+      return res
+        .status(403)
+        .json({ error: 'Cleanup endpoint only available in test environment' });
+    }
+
+    try {
+      // Clear all tournaments and shared brackets for clean test state
+      const tournaments = await db.getTournaments(1000); // Get all tournaments
+      for (const tournament of tournaments) {
+        await db.deleteTournament(tournament.id);
+      }
+
+      // Also clean up any expired brackets
+      await db.cleanupExpiredBrackets();
+
+      res.json({ message: 'Database cleaned up successfully' });
+    } catch (error) {
+      console.error('Error during database cleanup:', error);
+      res.status(500).json({ error: 'Failed to cleanup database' });
+    }
+  });
+
   // Get a specific tournament by ID
   router.get('/:id', async (req: Request, res: Response) => {
     try {
