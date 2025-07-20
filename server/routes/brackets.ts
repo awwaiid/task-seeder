@@ -31,9 +31,8 @@ export function BracketRouter(db: Database) {
       res.json({
         shareId,
         shareUrl,
-        expiresInDays: expires
+        expiresInDays: expires,
       });
-
     } catch (error) {
       console.error('Error sharing bracket:', error);
       res.status(500).json({ error: 'Failed to share bracket' });
@@ -52,7 +51,9 @@ export function BracketRouter(db: Database) {
       const sharedBracket = await db.getBracket(id);
 
       if (!sharedBracket) {
-        return res.status(404).json({ error: 'Shared bracket not found or expired' });
+        return res
+          .status(404)
+          .json({ error: 'Shared bracket not found or expired' });
       }
 
       // Increment access count
@@ -65,9 +66,8 @@ export function BracketRouter(db: Database) {
         bracketData,
         sharedAt: sharedBracket.createdAt,
         expiresAt: sharedBracket.expiresAt,
-        accessCount: sharedBracket.accessCount + 1 // Include the current access
+        accessCount: sharedBracket.accessCount + 1, // Include the current access
       });
-
     } catch (error) {
       console.error('Error getting shared bracket:', error);
       res.status(500).json({ error: 'Failed to retrieve shared bracket' });
@@ -89,9 +89,9 @@ export function BracketRouter(db: Database) {
   router.post('/cleanup', async (req: Request, res: Response) => {
     try {
       const deletedCount = await db.cleanupExpiredBrackets();
-      res.json({ 
+      res.json({
         message: 'Cleanup completed',
-        deletedBrackets: deletedCount 
+        deletedBrackets: deletedCount,
       });
     } catch (error) {
       console.error('Error during cleanup:', error);

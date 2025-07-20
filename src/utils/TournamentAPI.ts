@@ -56,13 +56,18 @@ export class TournamentAPI {
   /**
    * Create a new tournament
    */
-  async createTournament(name: string, tournamentType: string, data: TournamentData): Promise<string> {
+  async createTournament(
+    name: string,
+    tournamentType: string,
+    data: TournamentData
+  ): Promise<string> {
     // Convert Map to array for JSON serialization
     const serializedData: any = {
       ...data,
-      matchHistory: data.matchHistory instanceof Map 
-        ? Array.from(data.matchHistory.entries()) 
-        : data.matchHistory
+      matchHistory:
+        data.matchHistory instanceof Map
+          ? Array.from(data.matchHistory.entries())
+          : data.matchHistory,
     };
 
     const response = await fetch(`${this.baseUrl}/tournaments`, {
@@ -78,7 +83,9 @@ export class TournamentAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to create tournament' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to create tournament' }));
       throw new Error(error.error || 'Failed to create tournament');
     }
 
@@ -93,7 +100,9 @@ export class TournamentAPI {
     const response = await fetch(`${this.baseUrl}/tournaments?limit=${limit}`);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to retrieve tournaments' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to retrieve tournaments' }));
       throw new Error(error.error || 'Failed to retrieve tournaments');
     }
 
@@ -111,7 +120,9 @@ export class TournamentAPI {
       if (response.status === 404) {
         throw new Error('Tournament not found');
       }
-      const error = await response.json().catch(() => ({ error: 'Failed to retrieve tournament' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to retrieve tournament' }));
       throw new Error(error.error || 'Failed to retrieve tournament');
     }
 
@@ -121,13 +132,16 @@ export class TournamentAPI {
   /**
    * Update a tournament
    */
-  async updateTournament(id: string, updates: Partial<{ name: string; status: string; data: TournamentData }>): Promise<void> {
+  async updateTournament(
+    id: string,
+    updates: Partial<{ name: string; status: string; data: TournamentData }>
+  ): Promise<void> {
     // Convert Map to array for JSON serialization if data contains matchHistory
     const serializedUpdates: any = { ...updates };
     if (updates.data && updates.data.matchHistory instanceof Map) {
       serializedUpdates.data = {
         ...updates.data,
-        matchHistory: Array.from(updates.data.matchHistory.entries())
+        matchHistory: Array.from(updates.data.matchHistory.entries()),
       };
     }
 
@@ -140,7 +154,9 @@ export class TournamentAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to update tournament' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to update tournament' }));
       throw new Error(error.error || 'Failed to update tournament');
     }
   }
@@ -154,7 +170,9 @@ export class TournamentAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to delete tournament' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to delete tournament' }));
       throw new Error(error.error || 'Failed to delete tournament');
     }
   }
@@ -162,7 +180,10 @@ export class TournamentAPI {
   /**
    * Share a tournament
    */
-  async shareTournament(id: string, expiresInDays: number = 30): Promise<ShareTournamentResponse> {
+  async shareTournament(
+    id: string,
+    expiresInDays: number = 30
+  ): Promise<ShareTournamentResponse> {
     const response = await fetch(`${this.baseUrl}/tournaments/${id}/share`, {
       method: 'POST',
       headers: {
@@ -172,7 +193,9 @@ export class TournamentAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to share tournament' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to share tournament' }));
       throw new Error(error.error || 'Failed to share tournament');
     }
 
@@ -217,8 +240,8 @@ export class TournamentAPI {
       tasks: tournament.data.tasks,
       tournament: tournament.data.tournament,
       currentMatch: tournament.data.currentMatch,
-      matchHistory: Array.isArray(tournament.data.matchHistory) 
-        ? new Map(tournament.data.matchHistory) 
+      matchHistory: Array.isArray(tournament.data.matchHistory)
+        ? new Map(tournament.data.matchHistory)
         : tournament.data.matchHistory,
       createdAt: tournament.createdAt,
       lastModified: tournament.lastModified,

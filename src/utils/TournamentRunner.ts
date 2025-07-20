@@ -33,7 +33,7 @@ export class Tournament {
   type: string;
   originalEntrants: ParticipantUUID[]; // Now stores UUIDs instead of participant objects
   taskNameColumn: string | undefined;
-  
+
   // Properties for storing final results from completed tournaments
   _finalResults?: any;
   _isCompleteFromStorage?: boolean;
@@ -89,7 +89,7 @@ export class Tournament {
     // Apply seeding to UUIDs (seeding method still affects order)
     // Skip seeding if this is a restoration (preserveOrder flag)
     const seedingMethod = options.seedingMethod || 'order';
-    const seededEntrants = options.preserveOrder 
+    const seededEntrants = options.preserveOrder
       ? entrants // Use the exact order provided (for tournament restoration)
       : this._applySeedingMethodToUuids(entrants, seedingMethod);
 
@@ -238,7 +238,7 @@ export class Tournament {
   getRankings(): ParticipantUUID[] {
     // Now returns UUIDs instead of participant objects
     console.log('getRankings() called');
-    
+
     // If we have stored final results, use them directly
     if (this._isCompleteFromStorage && this._finalResults) {
       console.log('Using stored final results for rankings');
@@ -373,15 +373,17 @@ export class Tournament {
     if (isComplete) {
       try {
         const finalRankings = this.getRankings();
-        const finalRankingsWithHistory = finalRankings.map((participantId, index) => ({
-          rank: index + 1,
-          participantId,
-          matchHistory: this.getMatchHistoryForParticipant(participantId)
-        }));
-        
+        const finalRankingsWithHistory = finalRankings.map(
+          (participantId, index) => ({
+            rank: index + 1,
+            participantId,
+            matchHistory: this.getMatchHistoryForParticipant(participantId),
+          })
+        );
+
         (baseState as any).finalResults = {
           rankings: finalRankingsWithHistory,
-          computedAt: new Date().toISOString()
+          computedAt: new Date().toISOString(),
         };
       } catch (error) {
         console.warn('Could not compute final results for storage:', error);
@@ -406,14 +408,16 @@ export class Tournament {
     }
 
     const matchHistory: any[] = [];
-    const completedMatches = this.tournament.matches.filter((match: any) => 
-      !match.active && (match.player1?.win !== undefined || match.player2?.win !== undefined)
+    const completedMatches = this.tournament.matches.filter(
+      (match: any) =>
+        !match.active &&
+        (match.player1?.win !== undefined || match.player2?.win !== undefined)
     );
 
     completedMatches.forEach((match: any, index: number) => {
       let winnerUuid: ParticipantUUID;
       let loserUuid: ParticipantUUID;
-      
+
       // Determine winner and loser from the match
       if (match.player1?.win > match.player2?.win) {
         winnerUuid = match.player1.id;
@@ -443,7 +447,9 @@ export class Tournament {
       }
     });
 
-    return matchHistory.sort((a, b) => a.round - b.round || a.matchNumber - b.matchNumber);
+    return matchHistory.sort(
+      (a, b) => a.round - b.round || a.matchNumber - b.matchNumber
+    );
   }
 
   // Import tournament state from storage
@@ -467,7 +473,7 @@ export class Tournament {
       // New format using tournament-organizer
       // Instead of creating a fresh tournament and replaying matches,
       // restore the exact tournament state that was saved
-      
+
       const tournament = new Tournament(state.type, state.originalEntrants, {
         ...options,
         taskNameColumn: state.taskNameColumn,
@@ -478,16 +484,18 @@ export class Tournament {
 
       // Check if this is a completed tournament with final results
       if (state.isComplete && (state as any).finalResults) {
-        console.log('Tournament is complete, using stored final results instead of replaying matches');
-        
+        console.log(
+          'Tournament is complete, using stored final results instead of replaying matches'
+        );
+
         // For completed tournaments, we create a special wrapper that provides
         // the final results directly without needing the tournament-organizer state
         tournament._finalResults = (state as any).finalResults;
         tournament._isCompleteFromStorage = true;
-        
+
         // Still restore the tournament state for debugging/inspection if needed
         Object.assign(tournament.tournament, state.tournamentState);
-        
+
         return tournament;
       }
 
@@ -503,16 +511,21 @@ export class Tournament {
         });
 
         // Get completed matches from the saved state
-        const completedMatches = savedTournamentState.matches.filter(
-          (match: any) =>
-            !match.active &&
-            match.player1?.id &&
-            match.player2?.id &&
-            typeof match.player1.win === 'number' &&
-            typeof match.player2.win === 'number'
-        ).sort((a: any, b: any) => a.round - b.round || a.match - b.match);
+        const completedMatches = savedTournamentState.matches
+          .filter(
+            (match: any) =>
+              !match.active &&
+              match.player1?.id &&
+              match.player2?.id &&
+              typeof match.player1.win === 'number' &&
+              typeof match.player2.win === 'number'
+          )
+          .sort((a: any, b: any) => a.round - b.round || a.match - b.match);
 
-        console.log('Found completed matches to replay:', completedMatches.length);
+        console.log(
+          'Found completed matches to replay:',
+          completedMatches.length
+        );
 
         // Replay each completed match using exact match IDs
         for (const savedMatch of completedMatches) {
@@ -521,8 +534,10 @@ export class Tournament {
             // Match by players and round
             return (
               m.round === savedMatch.round &&
-              ((m.player1?.id === savedMatch.player1.id && m.player2?.id === savedMatch.player2.id) ||
-               (m.player1?.id === savedMatch.player2.id && m.player2?.id === savedMatch.player1.id))
+              ((m.player1?.id === savedMatch.player1.id &&
+                m.player2?.id === savedMatch.player2.id) ||
+                (m.player1?.id === savedMatch.player2.id &&
+                  m.player2?.id === savedMatch.player1.id))
             );
           });
 
@@ -531,27 +546,27 @@ export class Tournament {
               // Determine the correct win values based on player order
               let player1Win = savedMatch.player1.win || 0;
               let player2Win = savedMatch.player2.win || 0;
-              
+
               // If players are in reverse order, swap the win counts
               if (currentMatch.player1?.id === savedMatch.player2.id) {
                 player1Win = savedMatch.player2.win || 0;
                 player2Win = savedMatch.player1.win || 0;
               }
-              
+
               tournament.tournament.enterResult(
                 currentMatch.id,
                 player1Win,
                 player2Win,
                 savedMatch.player1.draw || 0
               );
-              
+
               console.log('Successfully replayed match:', {
                 matchId: currentMatch.id,
                 round: savedMatch.round,
                 player1: currentMatch.player1?.id,
                 player2: currentMatch.player2?.id,
                 player1Win,
-                player2Win
+                player2Win,
               });
             } catch (error) {
               console.warn('Error replaying match result:', error, savedMatch);
@@ -560,12 +575,15 @@ export class Tournament {
             console.warn('Could not find match to replay:', {
               round: savedMatch.round,
               player1: savedMatch.player1.id,
-              player2: savedMatch.player2.id
+              player2: savedMatch.player2.id,
             });
           }
         }
 
-        console.log('Tournament restoration completed, status:', tournament.tournament.status);
+        console.log(
+          'Tournament restoration completed, status:',
+          tournament.tournament.status
+        );
       } else {
         console.log('No matches to replay, using fresh tournament');
       }
@@ -1118,7 +1136,7 @@ export class QuickSortTournament {
     if (this._isCompleteFromStorage && this._finalResults) {
       return true;
     }
-    
+
     return this.comparisons.length === 0;
   }
 
@@ -1127,7 +1145,7 @@ export class QuickSortTournament {
     if (this._isCompleteFromStorage && this._finalResults) {
       return this._finalResults.rankings.map((r: any) => r.participantId);
     }
-    
+
     if (!this.isComplete()) {
       return this.originalEntrants;
     }
@@ -1255,28 +1273,28 @@ export class QuickSortTournament {
       );
       return participantResult?.matchHistory || [];
     }
-    
+
     // For in-progress tournaments, reconstruct match history from comparison results
     const matchHistory: any[] = [];
     let matchNumber = 1;
-    
+
     // Go through all comparison results and find matches involving this participant
     for (const [key, winner] of this.comparisonResults.entries()) {
       const [player1, player2] = key.split(':');
-      
+
       if (player1 === participantId || player2 === participantId) {
         const opponent = player1 === participantId ? player2 : player1;
         const didWin = winner === participantId;
-        
+
         matchHistory.push({
           matchNumber: matchNumber++,
           opponent,
           result: didWin ? 'WON' : 'LOST',
-          type: 'QuickSort Comparison'
+          type: 'QuickSort Comparison',
         });
       }
     }
-    
+
     return matchHistory;
   }
 
@@ -1301,18 +1319,23 @@ export class QuickSortTournament {
     if (isComplete) {
       try {
         const finalRankings = this.getRankings();
-        const finalRankingsWithHistory = finalRankings.map((participantId, index) => ({
-          rank: index + 1,
-          participantId,
-          matchHistory: this.getMatchHistoryForParticipant(participantId)
-        }));
-        
+        const finalRankingsWithHistory = finalRankings.map(
+          (participantId, index) => ({
+            rank: index + 1,
+            participantId,
+            matchHistory: this.getMatchHistoryForParticipant(participantId),
+          })
+        );
+
         (baseState as any).finalResults = {
           rankings: finalRankingsWithHistory,
-          computedAt: new Date().toISOString()
+          computedAt: new Date().toISOString(),
         };
       } catch (error) {
-        console.warn('Could not compute final results for QuickSort storage:', error);
+        console.warn(
+          'Could not compute final results for QuickSort storage:',
+          error
+        );
       }
     }
 
@@ -1330,21 +1353,27 @@ export class QuickSortTournament {
 
     // Check if this is a completed tournament with final results
     if (state.isComplete && (state as any).finalResults) {
-      console.log('QuickSort tournament is complete, using stored final results');
+      console.log(
+        'QuickSort tournament is complete, using stored final results'
+      );
       tournament._finalResults = (state as any).finalResults;
       tournament._isCompleteFromStorage = true;
-      
+
       // Still restore the quicksort state for debugging if needed
       if (state.quicksortState) {
         tournament.participants = state.quicksortState.participants || [];
         tournament.comparisons = state.quicksortState.comparisons || [];
-        tournament.completedComparisons = state.quicksortState.completedComparisons || 0;
-        tournament.totalComparisons = state.quicksortState.totalComparisons || 0;
+        tournament.completedComparisons =
+          state.quicksortState.completedComparisons || 0;
+        tournament.totalComparisons =
+          state.quicksortState.totalComparisons || 0;
         if (state.quicksortState.comparisonResults) {
-          tournament.comparisonResults = new Map(state.quicksortState.comparisonResults);
+          tournament.comparisonResults = new Map(
+            state.quicksortState.comparisonResults
+          );
         }
       }
-      
+
       return tournament;
     }
 

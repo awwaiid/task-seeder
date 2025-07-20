@@ -26,7 +26,10 @@ export class BracketSharingAPI {
   /**
    * Share a bracket by uploading it to the server
    */
-  async shareBracket(bracketData: any, expiresInDays: number = 30): Promise<ShareBracketResponse> {
+  async shareBracket(
+    bracketData: any,
+    expiresInDays: number = 30
+  ): Promise<ShareBracketResponse> {
     const response = await fetch(`${this.baseUrl}/brackets/share`, {
       method: 'POST',
       headers: {
@@ -39,7 +42,9 @@ export class BracketSharingAPI {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to share bracket' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to share bracket' }));
       throw new Error(error.error || 'Failed to share bracket');
     }
 
@@ -56,7 +61,9 @@ export class BracketSharingAPI {
       if (response.status === 404) {
         throw new Error('Shared bracket not found or expired');
       }
-      const error = await response.json().catch(() => ({ error: 'Failed to retrieve bracket' }));
+      const error = await response
+        .json()
+        .catch(() => ({ error: 'Failed to retrieve bracket' }));
       throw new Error(error.error || 'Failed to retrieve bracket');
     }
 
@@ -82,9 +89,12 @@ export class BracketSharingAPI {
   /**
    * Update the current URL to reflect a shared bracket
    */
-  static updateURLWithShareId(shareId: string, replaceState: boolean = true): void {
+  static updateURLWithShareId(
+    shareId: string,
+    replaceState: boolean = true
+  ): void {
     const newURL = this.createShareURL(shareId);
-    
+
     if (replaceState) {
       window.history.replaceState({}, '', newURL);
     } else {

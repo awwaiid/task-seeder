@@ -32,21 +32,22 @@ export class Database {
 
   constructor() {
     // Store database in the data directory for Docker volume persistence
-    const dataDir = process.env.NODE_ENV === 'production' 
-      ? path.join(process.cwd(), 'data')
-      : __dirname;
+    const dataDir =
+      process.env.NODE_ENV === 'production'
+        ? path.join(process.cwd(), 'data')
+        : __dirname;
     this.dbPath = path.join(dataDir, 'taskseeder.db');
   }
 
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.db = new sqlite3.Database(this.dbPath, (err) => {
+      this.db = new sqlite3.Database(this.dbPath, err => {
         if (err) {
           console.error('Error opening database:', err);
           reject(err);
           return;
         }
-        
+
         console.log('Connected to SQLite database:', this.dbPath);
         this.createTables().then(resolve).catch(reject);
       });
@@ -88,7 +89,7 @@ export class Database {
 
     return new Promise((resolve, reject) => {
       this.db!.serialize(() => {
-        this.db!.run(createSharedBracketsTable, (err) => {
+        this.db!.run(createSharedBracketsTable, err => {
           if (err) {
             console.error('Error creating shared_brackets table:', err);
             reject(err);
@@ -96,7 +97,7 @@ export class Database {
           }
         });
 
-        this.db!.run(createTournamentsTable, (err) => {
+        this.db!.run(createTournamentsTable, err => {
           if (err) {
             console.error('Error creating tournaments table:', err);
             reject(err);
@@ -104,7 +105,7 @@ export class Database {
           }
         });
 
-        this.db!.run(createIndex, (err) => {
+        this.db!.run(createIndex, err => {
           if (err) {
             console.error('Error creating index:', err);
             reject(err);
@@ -117,7 +118,11 @@ export class Database {
     });
   }
 
-  async saveBracket(id: string, bracketData: any, expiresInDays: number = 30): Promise<void> {
+  async saveBracket(
+    id: string,
+    bracketData: any,
+    expiresInDays: number = 30
+  ): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const expiresAt = new Date();
@@ -129,15 +134,19 @@ export class Database {
     `;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(query, [id, JSON.stringify(bracketData), expiresAt.toISOString()], function(err) {
-        if (err) {
-          console.error('Error saving bracket:', err);
-          reject(err);
-        } else {
-          console.log('Bracket saved with ID:', id);
-          resolve();
+      this.db!.run(
+        query,
+        [id, JSON.stringify(bracketData), expiresAt.toISOString()],
+        function (err) {
+          if (err) {
+            console.error('Error saving bracket:', err);
+            reject(err);
+          } else {
+            console.log('Bracket saved with ID:', id);
+            resolve();
+          }
         }
-      });
+      );
     });
   }
 
@@ -163,7 +172,7 @@ export class Database {
             bracketData: row.bracket_data,
             createdAt: row.created_at,
             expiresAt: row.expires_at,
-            accessCount: row.access_count
+            accessCount: row.access_count,
           });
         }
       });
@@ -180,7 +189,7 @@ export class Database {
     `;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(query, [id], function(err) {
+      this.db!.run(query, [id], function (err) {
         if (err) {
           console.error('Error incrementing access count:', err);
           reject(err);
@@ -200,7 +209,7 @@ export class Database {
     `;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(query, function(err) {
+      this.db!.run(query, function (err) {
         if (err) {
           console.error('Error cleaning up expired brackets:', err);
           reject(err);
@@ -231,7 +240,7 @@ export class Database {
         } else {
           resolve({
             totalBrackets: row.total_brackets || 0,
-            totalAccesses: row.total_accesses || 0
+            totalAccesses: row.total_accesses || 0,
           });
         }
       });
@@ -239,7 +248,9 @@ export class Database {
   }
 
   // Tournament CRUD operations
-  async saveTournament(tournament: Omit<Tournament, 'createdAt' | 'lastModified'>): Promise<void> {
+  async saveTournament(
+    tournament: Omit<Tournament, 'createdAt' | 'lastModified'>
+  ): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const query = `
@@ -249,23 +260,27 @@ export class Database {
     `;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(query, [
-        tournament.id,
-        tournament.name,
-        tournament.status,
-        tournament.tournamentType,
-        tournament.data,
-        tournament.isShared,
-        tournament.shareId || null
-      ], function(err) {
-        if (err) {
-          console.error('Error saving tournament:', err);
-          reject(err);
-        } else {
-          console.log('Tournament saved with ID:', tournament.id);
-          resolve();
+      this.db!.run(
+        query,
+        [
+          tournament.id,
+          tournament.name,
+          tournament.status,
+          tournament.tournamentType,
+          tournament.data,
+          tournament.isShared,
+          tournament.shareId || null,
+        ],
+        function (err) {
+          if (err) {
+            console.error('Error saving tournament:', err);
+            reject(err);
+          } else {
+            console.log('Tournament saved with ID:', tournament.id);
+            resolve();
+          }
         }
-      });
+      );
     });
   }
 
@@ -295,7 +310,7 @@ export class Database {
             createdAt: row.created_at,
             lastModified: row.last_modified,
             isShared: !!row.is_shared,
-            shareId: row.share_id
+            shareId: row.share_id,
           });
         }
       });
@@ -327,7 +342,7 @@ export class Database {
             createdAt: row.created_at,
             lastModified: row.last_modified,
             isShared: !!row.is_shared,
-            shareId: row.share_id
+            shareId: row.share_id,
           }));
           resolve(tournaments);
         }
@@ -341,7 +356,7 @@ export class Database {
     const query = `DELETE FROM tournaments WHERE id = ?`;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(query, [id], function(err) {
+      this.db!.run(query, [id], function (err) {
         if (err) {
           console.error('Error deleting tournament:', err);
           reject(err);
@@ -353,7 +368,11 @@ export class Database {
     });
   }
 
-  async updateTournamentShareStatus(id: string, isShared: boolean, shareId?: string): Promise<void> {
+  async updateTournamentShareStatus(
+    id: string,
+    isShared: boolean,
+    shareId?: string
+  ): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
 
     const query = `
@@ -363,7 +382,7 @@ export class Database {
     `;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(query, [isShared, shareId || null, id], function(err) {
+      this.db!.run(query, [isShared, shareId || null, id], function (err) {
         if (err) {
           console.error('Error updating tournament share status:', err);
           reject(err);
@@ -378,7 +397,7 @@ export class Database {
     if (!this.db) return;
 
     return new Promise((resolve, reject) => {
-      this.db!.close((err) => {
+      this.db!.close(err => {
         if (err) {
           console.error('Error closing database:', err);
           reject(err);

@@ -22,25 +22,32 @@ const db = new Database();
 await db.init();
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: NODE_ENV === 'production' ? undefined : false,
-  crossOriginEmbedderPolicy: false
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: NODE_ENV === 'production' ? undefined : false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 
 // Rate limiting for API endpoints
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  message: { error: 'Too many requests from this IP, please try again later.' }
+  message: { error: 'Too many requests from this IP, please try again later.' },
 });
 app.use('/api/', limiter);
 
 // CORS configuration
 const corsOptions = {
-  origin: NODE_ENV === 'production' 
-    ? true // Allow all origins in production (adjust as needed)
-    : ['http://localhost:5173', 'http://localhost:4173', 'http://localhost:3000'],
-  credentials: true
+  origin:
+    NODE_ENV === 'production'
+      ? true // Allow all origins in production (adjust as needed)
+      : [
+          'http://localhost:5173',
+          'http://localhost:4173',
+          'http://localhost:3000',
+        ],
+  credentials: true,
 };
 app.use(cors(corsOptions));
 
@@ -57,10 +64,10 @@ app.use('/api/tournaments', TournamentRouter(db));
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'healthy', 
+  res.json({
+    status: 'healthy',
     timestamp: new Date().toISOString(),
-    environment: NODE_ENV 
+    environment: NODE_ENV,
   });
 });
 
@@ -73,7 +80,7 @@ app.get('*', (req: Request, res: Response) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API route not found' });
   }
-  
+
   // Serve index.html for all other routes (SPA routing)
   res.sendFile(path.join(distPath, 'index.html'));
 });
@@ -81,8 +88,8 @@ app.get('*', (req: Request, res: Response) => {
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('Error:', err);
-  res.status(500).json({ 
-    error: NODE_ENV === 'production' ? 'Internal server error' : err.message 
+  res.status(500).json({
+    error: NODE_ENV === 'production' ? 'Internal server error' : err.message,
   });
 });
 

@@ -443,11 +443,11 @@ async function handleStartTournament(setupData: any) {
   try {
     await saveTournamentToDatabase();
     isUsingDatabase.value = true;
-    
+
     // Update URL with tournament UUID
     if (currentTournamentId.value) {
       updateURLWithTournament(currentTournamentId.value);
-      
+
       // Track this tournament as accessed
       const tournamentData = {
         tournamentName: tournamentName.value,
@@ -461,7 +461,10 @@ async function handleStartTournament(setupData: any) {
       loadSavedBrackets(); // Refresh the saved brackets list
     }
   } catch (error) {
-    console.warn('Error saving to database, falling back to localStorage:', error);
+    console.warn(
+      'Error saving to database, falling back to localStorage:',
+      error
+    );
     // Fallback to localStorage
     try {
       saveBracket();
@@ -707,16 +710,17 @@ async function loadSavedBrackets() {
   try {
     // Get localStorage brackets (legacy)
     const localBrackets = BracketStorage.getBracketsList();
-    
+
     // Get browser-accessed tournament metadata
     const accessedTournaments = getAccessedTournaments();
-    
+
     // Combine and sort by last modified (most recent first)
-    const allBrackets = [...localBrackets, ...accessedTournaments].sort((a, b) => 
-      new Date(b.lastModified || b.createdAt).getTime() - 
-      new Date(a.lastModified || a.createdAt).getTime()
+    const allBrackets = [...localBrackets, ...accessedTournaments].sort(
+      (a, b) =>
+        new Date(b.lastModified || b.createdAt).getTime() -
+        new Date(a.lastModified || a.createdAt).getTime()
     );
-    
+
     savedBrackets.value = allBrackets;
   } catch (error) {
     console.warn('Error loading saved brackets:', error);
@@ -728,19 +732,24 @@ async function loadBracket(bracketIdOrData: string | any) {
   try {
     let bracketData: any;
     let bracketId: string | null = null;
-    
+
     if (typeof bracketIdOrData === 'string') {
       // Check if it's a database tournament first (UUIDs are typically longer)
       if (bracketIdOrData.length > 20 && bracketIdOrData.includes('-')) {
         try {
           // Try loading from database
-          const tournamentResponse = await tournamentAPI.getTournament(bracketIdOrData);
-          bracketData = TournamentAPI.convertTournamentToBracket(tournamentResponse);
+          const tournamentResponse =
+            await tournamentAPI.getTournament(bracketIdOrData);
+          bracketData =
+            TournamentAPI.convertTournamentToBracket(tournamentResponse);
           bracketId = null; // Don't use localStorage ID for database tournaments
           currentTournamentId.value = bracketIdOrData;
           isUsingDatabase.value = true;
         } catch (error) {
-          console.warn('Failed to load from database, trying localStorage:', error);
+          console.warn(
+            'Failed to load from database, trying localStorage:',
+            error
+          );
           // Fallback to localStorage
           bracketData = BracketStorage.loadBracket(bracketIdOrData);
           bracketId = bracketIdOrData;
@@ -787,7 +796,7 @@ async function loadBracket(bracketIdOrData: string | any) {
       matchHistory.value = new Map();
     }
     currentBracketId.value = bracketId;
-    
+
     // Update URL if we have a tournament ID
     if (currentTournamentId.value) {
       updateURLWithTournament(currentTournamentId.value);
@@ -848,9 +857,10 @@ async function saveTournamentToDatabase() {
       tournamentType: tournamentType.value,
       seedingMethod: 'order',
       tasks: tasks.value,
-      tournament: tournament.value && typeof tournament.value.exportState === 'function'
-        ? tournament.value.exportState()
-        : null,
+      tournament:
+        tournament.value && typeof tournament.value.exportState === 'function'
+          ? tournament.value.exportState()
+          : null,
       currentMatch: currentMatch.value,
       matchHistory: matchHistory.value,
     };
@@ -859,7 +869,7 @@ async function saveTournamentToDatabase() {
       // Update existing tournament
       await tournamentAPI.updateTournament(currentTournamentId.value, {
         status: currentPhase.value,
-        data: tournamentData
+        data: tournamentData,
       });
     } else {
       // Create new tournament
@@ -941,7 +951,7 @@ async function deleteBracket(bracketId: string) {
           currentBracketId.value = null;
         }
       }
-      
+
       await loadSavedBrackets();
       updateStorageUsage();
     } catch (error) {
@@ -1048,28 +1058,36 @@ function getAccessedTournaments(): SavedBracket[] {
 function trackAccessedTournament(tournamentData: any, tournamentId: string) {
   try {
     const accessedTournaments = getAccessedTournaments();
-    
+
     // Remove existing entry if it exists
-    const filteredTournaments = accessedTournaments.filter(t => t.id !== tournamentId);
-    
+    const filteredTournaments = accessedTournaments.filter(
+      t => t.id !== tournamentId
+    );
+
     // Add/update tournament metadata
     const tournamentMetadata: SavedBracket = {
       id: tournamentId,
-      name: tournamentData.tournamentName || tournamentData.name || 'Unnamed Tournament',
+      name:
+        tournamentData.tournamentName ||
+        tournamentData.name ||
+        'Unnamed Tournament',
       status: tournamentData.currentPhase || tournamentData.status || 'setup',
       tournamentType: tournamentData.tournamentType || 'single',
       taskCount: (tournamentData.csvData || tournamentData.tasks || []).length,
       createdAt: tournamentData.createdAt || new Date().toISOString(),
       lastModified: tournamentData.lastModified || new Date().toISOString(),
     };
-    
+
     // Add to front of list (most recent first)
     filteredTournaments.unshift(tournamentMetadata);
-    
+
     // Keep only last 50 accessed tournaments
     const limitedTournaments = filteredTournaments.slice(0, 50);
-    
-    localStorage.setItem(ACCESSED_TOURNAMENTS_KEY, JSON.stringify(limitedTournaments));
+
+    localStorage.setItem(
+      ACCESSED_TOURNAMENTS_KEY,
+      JSON.stringify(limitedTournaments)
+    );
   } catch (error) {
     console.warn('Error tracking accessed tournament:', error);
   }
@@ -1078,8 +1096,13 @@ function trackAccessedTournament(tournamentData: any, tournamentId: string) {
 function removeAccessedTournament(tournamentId: string) {
   try {
     const accessedTournaments = getAccessedTournaments();
-    const filteredTournaments = accessedTournaments.filter(t => t.id !== tournamentId);
-    localStorage.setItem(ACCESSED_TOURNAMENTS_KEY, JSON.stringify(filteredTournaments));
+    const filteredTournaments = accessedTournaments.filter(
+      t => t.id !== tournamentId
+    );
+    localStorage.setItem(
+      ACCESSED_TOURNAMENTS_KEY,
+      JSON.stringify(filteredTournaments)
+    );
   } catch (error) {
     console.warn('Error removing accessed tournament:', error);
   }
@@ -1089,7 +1112,7 @@ function removeAccessedTournament(tournamentId: string) {
 onMounted(() => {
   loadSavedBrackets();
   updateStorageUsage();
-  
+
   // Check for shared bracket in URL
   checkForSharedBracket();
 });
@@ -1118,9 +1141,11 @@ async function checkForSharedBracket() {
     if (tournamentId) {
       console.log('Loading tournament from URL:', tournamentId);
       try {
-        const tournamentResponse = await tournamentAPI.getTournament(tournamentId);
-        const bracketData = TournamentAPI.convertTournamentToBracket(tournamentResponse);
-        
+        const tournamentResponse =
+          await tournamentAPI.getTournament(tournamentId);
+        const bracketData =
+          TournamentAPI.convertTournamentToBracket(tournamentResponse);
+
         loadedFromURL.value = true;
         isUsingDatabase.value = true;
         currentTournamentId.value = tournamentId;
@@ -1139,10 +1164,10 @@ async function checkForSharedBracket() {
       console.log('Loading shared bracket:', shareId);
       const api = new BracketSharingAPI();
       const sharedBracket = await api.getSharedBracket(shareId);
-      
+
       loadedFromURL.value = true;
       loadBracket(sharedBracket.bracketData);
-      
+
       // Clear the URL after loading to avoid repeated loading
       BracketSharingAPI.clearShareFromURL();
       return;
@@ -1153,7 +1178,7 @@ async function checkForSharedBracket() {
     if (bracketData) {
       loadedFromURL.value = true;
       loadBracket(bracketData);
-      
+
       // Clear the URL parameter after loading to avoid repeated loading
       URLBracketSharing.clearBracketFromURL();
     }

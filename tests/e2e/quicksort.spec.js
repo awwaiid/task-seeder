@@ -24,7 +24,9 @@ test.describe('QuickSort Tournament', () => {
     expect(matchCountText).toMatch(/\d+ matches/);
 
     // Verify description mentions algorithm-based comparisons
-    await expect(page.locator('text=Algorithm-based comparisons')).toBeVisible();
+    await expect(
+      page.locator('text=Algorithm-based comparisons')
+    ).toBeVisible();
 
     // Set tournament name
     await page
@@ -41,13 +43,17 @@ test.describe('QuickSort Tournament', () => {
     await expect(page.locator('[data-testid="task-matchup"]')).toBeVisible();
 
     // Verify QuickSort progress indicator format
-    await expect(page.locator('h2').filter({ hasText: 'Match 1 of' })).toBeVisible();
-    await expect(page.locator('h2').filter({ hasText: 'Round 1 of' })).toBeVisible();
+    await expect(
+      page.locator('h2').filter({ hasText: 'Match 1 of' })
+    ).toBeVisible();
+    await expect(
+      page.locator('h2').filter({ hasText: 'Round 1 of' })
+    ).toBeVisible();
 
     // Complete entire tournament by always choosing first option (deterministic)
     let maxMatches = 100; // QuickSort can have many matches for larger sets
     let matchesCompleted = 0;
-    
+
     for (let i = 0; i < maxMatches; i++) {
       // Check if tournament is complete
       const resultsVisible = await page
@@ -93,20 +99,26 @@ test.describe('QuickSort Tournament', () => {
     }
   });
 
-  test('should handle QuickSort with demo data (15 tasks)', async ({ page }) => {
+  test('should handle QuickSort with demo data (15 tasks)', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     // Use demo data button
     await page.locator('button:has-text("Try with Demo Data")').click();
 
     // Wait for demo data to load
-    await expect(page.locator('text=Data Preview (15 tasks loaded)')).toBeVisible();
+    await expect(
+      page.locator('text=Data Preview (15 tasks loaded)')
+    ).toBeVisible();
 
     // Select QuickSort tournament type
     await page.locator('text=QuickSort Ranking').click();
 
     // Verify match count shows expected number for 15 tasks
-    const totalMatchesElement = await page.locator('text=Total matches needed:').locator('..');
+    const totalMatchesElement = await page
+      .locator('text=Total matches needed:')
+      .locator('..');
     const matchCountText = await totalMatchesElement.textContent();
     const totalMatches = parseInt(matchCountText.split(':')[1].trim());
     expect(totalMatches).toBeGreaterThan(20); // Should be around 59 for 15 tasks
@@ -145,7 +157,7 @@ test.describe('QuickSort Tournament', () => {
     const stillInProgress = await page
       .locator('[data-testid="task-matchup"]')
       .isVisible({ timeout: 1000 });
-    
+
     if (!stillInProgress) {
       // If tournament completed, verify results
       await expect(page.locator('text=Your Task Rankings')).toBeVisible();
@@ -153,7 +165,9 @@ test.describe('QuickSort Tournament', () => {
     }
   });
 
-  test('should show correct QuickSort tournament progress', async ({ page }) => {
+  test('should show correct QuickSort tournament progress', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     // Upload test CSV file
@@ -201,7 +215,7 @@ test.describe('QuickSort Tournament', () => {
 
         // Wait briefly for UI to update
         await page.waitForTimeout(100);
-        
+
         // Verify progress percentage increases
         const progressText = await page
           .locator('text=/Total match \\d+ of \\d+ \\(\\d+%\\)/')
@@ -216,7 +230,9 @@ test.describe('QuickSort Tournament', () => {
     expect(matchesCompleted).toBeGreaterThan(0);
   });
 
-  test('should handle match history correctly in QuickSort', async ({ page }) => {
+  test('should handle match history correctly in QuickSort', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     const csvPath = path.join(process.cwd(), 'tests/fixtures/small.csv');
@@ -233,7 +249,7 @@ test.describe('QuickSort Tournament', () => {
     // Complete tournament
     let matchCount = 0;
     const maxMatches = 50; // Safety limit
-    
+
     while (matchCount < maxMatches) {
       try {
         const resultsVisible = await page
@@ -293,20 +309,26 @@ test.describe('QuickSort Tournament', () => {
     expect(matchCountText).toMatch(/\d+ matches/);
 
     // Verify description mentions QuickSort features
-    await expect(page.locator('text=Algorithm-based comparisons')).toBeVisible();
+    await expect(
+      page.locator('text=Algorithm-based comparisons')
+    ).toBeVisible();
 
     // Verify total matches calculation is reasonable for QuickSort (O(n log n))
-    const totalMatchesElement = await page.locator('text=Total matches needed:').locator('..');
+    const totalMatchesElement = await page
+      .locator('text=Total matches needed:')
+      .locator('..');
     const totalMatchesText = await totalMatchesElement.textContent();
     const totalMatches = parseInt(totalMatchesText.split(':')[1].trim());
-    
+
     // For 7 tasks, QuickSort should require approximately n log n comparisons
     // This should be more than single elimination (6) but reasonable
     expect(totalMatches).toBeGreaterThan(6);
     expect(totalMatches).toBeLessThan(50); // Reasonable upper bound
   });
 
-  test('should export rankings CSV after QuickSort completion', async ({ page }) => {
+  test('should export rankings CSV after QuickSort completion', async ({
+    page,
+  }) => {
     await page.goto('/');
 
     const csvPath = path.join(process.cwd(), 'tests/fixtures/small.csv');
@@ -339,7 +361,7 @@ test.describe('QuickSort Tournament', () => {
 
     // Test export functionality
     await expect(page.locator('text=Your Task Rankings')).toBeVisible();
-    
+
     const exportButton = page
       .locator('button')
       .filter({ hasText: /export|download/i });

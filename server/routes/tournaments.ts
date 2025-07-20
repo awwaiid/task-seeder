@@ -11,8 +11,8 @@ export function TournamentRouter(db: Database) {
       const { name, tournamentType, data } = req.body;
 
       if (!name || !tournamentType || !data) {
-        return res.status(400).json({ 
-          error: 'Name, tournament type, and data are required' 
+        return res.status(400).json({
+          error: 'Name, tournament type, and data are required',
         });
       }
 
@@ -23,16 +23,15 @@ export function TournamentRouter(db: Database) {
         status: 'setup' as const,
         tournamentType,
         data: JSON.stringify(data),
-        isShared: false
+        isShared: false,
       };
 
       await db.saveTournament(tournament);
 
       res.status(201).json({
         id: tournamentId,
-        message: 'Tournament created successfully'
+        message: 'Tournament created successfully',
       });
-
     } catch (error) {
       console.error('Error creating tournament:', error);
       res.status(500).json({ error: 'Failed to create tournament' });
@@ -53,11 +52,10 @@ export function TournamentRouter(db: Database) {
         tournamentType: t.tournamentType,
         createdAt: t.createdAt,
         lastModified: t.lastModified,
-        isShared: t.isShared
+        isShared: t.isShared,
       }));
 
       res.json({ tournaments: tournamentList });
-
     } catch (error) {
       console.error('Error getting tournaments:', error);
       res.status(500).json({ error: 'Failed to retrieve tournaments' });
@@ -91,9 +89,8 @@ export function TournamentRouter(db: Database) {
         createdAt: tournament.createdAt,
         lastModified: tournament.lastModified,
         isShared: tournament.isShared,
-        shareId: tournament.shareId
+        shareId: tournament.shareId,
       });
-
     } catch (error) {
       console.error('Error getting tournament:', error);
       res.status(500).json({ error: 'Failed to retrieve tournament' });
@@ -123,13 +120,12 @@ export function TournamentRouter(db: Database) {
         tournamentType: existingTournament.tournamentType,
         data: data ? JSON.stringify(data) : existingTournament.data,
         isShared: existingTournament.isShared,
-        shareId: existingTournament.shareId
+        shareId: existingTournament.shareId,
       };
 
       await db.saveTournament(updatedTournament);
 
       res.json({ message: 'Tournament updated successfully' });
-
     } catch (error) {
       console.error('Error updating tournament:', error);
       res.status(500).json({ error: 'Failed to update tournament' });
@@ -153,7 +149,6 @@ export function TournamentRouter(db: Database) {
       await db.deleteTournament(id);
 
       res.json({ message: 'Tournament deleted successfully' });
-
     } catch (error) {
       console.error('Error deleting tournament:', error);
       res.status(500).json({ error: 'Failed to delete tournament' });
@@ -184,7 +179,7 @@ export function TournamentRouter(db: Database) {
         ...tournamentData,
         name: tournament.name,
         status: tournament.status,
-        tournamentType: tournament.tournamentType
+        tournamentType: tournament.tournamentType,
       };
 
       // Save to shared_brackets table
@@ -201,9 +196,8 @@ export function TournamentRouter(db: Database) {
       res.json({
         shareId,
         shareUrl,
-        expiresInDays
+        expiresInDays,
       });
-
     } catch (error) {
       console.error('Error sharing tournament:', error);
       res.status(500).json({ error: 'Failed to share tournament' });

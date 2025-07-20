@@ -152,7 +152,8 @@ export class BracketStorage {
     const brackets = this.getAllBrackets();
     return Object.values(brackets).sort(
       (a, b) =>
-        new Date(b.lastModified || b.createdAt).getTime() - new Date(a.lastModified || a.createdAt).getTime()
+        new Date(b.lastModified || b.createdAt).getTime() -
+        new Date(a.lastModified || a.createdAt).getTime()
     );
   }
 
