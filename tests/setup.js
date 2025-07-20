@@ -30,6 +30,26 @@ Object.defineProperty(window, 'confirm', {
   writable: true,
 });
 
+// Mock location for API tests
+Object.defineProperty(window, 'location', {
+  value: {
+    origin: 'http://localhost:3000',
+    href: 'http://localhost:3000',
+    pathname: '/',
+  },
+  writable: true,
+});
+
+// Mock fetch with proper URL constructor
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({}),
+    text: () => Promise.resolve(''),
+  })
+);
+
 // Custom matchers
 expect.extend({
   toBeOneOf(received, expected) {

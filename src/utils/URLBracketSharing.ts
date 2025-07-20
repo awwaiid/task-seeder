@@ -63,6 +63,10 @@ interface ExpandedTournament {
 export class URLBracketSharing {
   static encodeBracketToURL(bracketData: BracketData): string {
     try {
+      if (!bracketData) {
+        throw new Error('Failed to create shareable URL');
+      }
+      
       // Create a simplified version of the bracket data for URL encoding
       const urlData: URLData = {
         n: bracketData.name,
@@ -93,7 +97,6 @@ export class URLBracketSharing {
 
       return encoded;
     } catch (error) {
-      console.error('Error encoding bracket to URL:', error);
       throw new Error('Failed to create shareable URL');
     }
   }
@@ -128,7 +131,6 @@ export class URLBracketSharing {
 
       return bracketData;
     } catch (error) {
-      console.error('Error decoding bracket from URL:', error);
       throw new Error('Invalid or corrupted bracket URL');
     }
   }
@@ -224,7 +226,6 @@ export class URLBracketSharing {
         return this.decodeBracketFromURL(bracketParam);
       }
     } catch (error) {
-      console.error('Error extracting bracket from URL:', error);
       return null;
     }
 
@@ -245,7 +246,7 @@ export class URLBracketSharing {
         window.history.pushState({}, '', newURL);
       }
     } catch (error) {
-      console.error('Error updating URL with bracket:', error);
+      // Silently fail if URL update fails
     }
   }
 
