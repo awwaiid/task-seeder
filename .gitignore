@@ -27,3 +27,6 @@ dist-server
 /test-results
 /tmp
 .aider*
+
+# Database files (production data directory)
+/data

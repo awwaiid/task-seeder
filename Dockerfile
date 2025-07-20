@@ -1,14 +1,17 @@
 # Multi-stage build for TaskSeeder
 FROM node:20-alpine AS builder
 
+# Install build dependencies for native modules (like sqlite3)
+RUN apk add --no-cache make gcc g++ python3
+
 # Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production --silent
+# Install all dependencies (including devDependencies for build)
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -25,28 +28,22 @@ FROM node:20-alpine AS production
 # Set working directory
 WORKDIR /app
 
-# Install dumb-init for proper signal handling
+# Install only dumb-init for signal handling
 RUN apk add --no-cache dumb-init
 
-# Create app user
-RUN addgroup -g 1000 -S nodejs
-RUN adduser -S taskseeder -u 1000
+# Use existing node user (uid 1000) as requested
 
-# Copy package files
-COPY package*.json ./
-
-# Install only production dependencies
-RUN npm ci --only=production --silent && npm cache clean --force
-
-# Copy built assets from builder stage
-COPY --from=builder --chown=taskseeder:nodejs /app/dist ./dist
-COPY --from=builder --chown=taskseeder:nodejs /app/dist-server ./dist-server
+# Copy built assets and node_modules from builder stage
+COPY --from=builder --chown=node:node /app/dist ./dist
+COPY --from=builder --chown=node:node /app/dist-server ./dist-server
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/package*.json ./
 
 # Create data directory for SQLite database
-RUN mkdir -p /app/data && chown taskseeder:nodejs /app/data
+RUN mkdir -p /app/data && chown node:node /app/data
 
 # Switch to non-root user
-USER taskseeder
+USER node
 
 # Expose port
 EXPOSE 3000

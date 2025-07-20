@@ -8,7 +8,7 @@ services:
       - "3000:3000"
     volumes:
       # Persist SQLite database
-      - taskseeder_data:/app/data
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=3000
@@ -18,8 +18,4 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-volumes:
-  taskseeder_data:
-    driver: local
 
