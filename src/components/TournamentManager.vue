@@ -43,6 +43,7 @@
         :task-name-column="taskNameColumn"
         :selected-fields="selectedSecondaryFields"
         @choose-winner="chooseWinner"
+        @skip-task="handleSkipTask"
       />
 
       <div style="text-align: center; margin-top: 20px">
@@ -242,13 +243,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import TournamentProgress from './TournamentProgress.vue';
 import TournamentSetup from './TournamentSetup.vue';
 import TaskMatchup from './TaskMatchup.vue';
 import {
   Tournament,
   QuickSortTournament,
+  SampleSortTournament,
   createTournament,
 } from '../utils/TournamentRunner';
 import { BracketStorage, type SavedBracket } from '../utils/BracketStorage';
@@ -269,7 +271,7 @@ type CurrentPhase = 'setup' | 'matchups' | 'results';
 const currentPhase = ref<CurrentPhase>('setup');
 
 // Tournament state
-const tournament = ref<Tournament | QuickSortTournament | null>(null);
+const tournament = ref<Tournament | QuickSortTournament | SampleSortTournament | null>(null);
 const tournamentName = ref<string>('');
 const tournamentType = ref<TournamentType>('single');
 const taskNameColumn = ref<string>('');
@@ -307,6 +309,22 @@ const currentPair = computed(() => {
   // Convert UUIDs to participant objects for display
   const player1 = getTaskByUuid(currentMatch.value.player1);
   const player2 = getTaskByUuid(currentMatch.value.player2);
+
+  // Auto-handle skipped tasks
+  if (player1?.__skipped && player2?.__skipped) {
+    // Both skipped - player1 wins arbitrarily, but both will be ranked low
+    nextTick(() => chooseWinner(0));
+    return [player1, player2];
+  } else if (player1?.__skipped) {
+    // Player1 skipped - player2 wins
+    nextTick(() => chooseWinner(1));
+    return [player1, player2];
+  } else if (player2?.__skipped) {
+    // Player2 skipped - player1 wins
+    nextTick(() => chooseWinner(0));
+    return [player1, player2];
+  }
+
   return [player1, player2];
 });
 
@@ -532,6 +550,26 @@ async function chooseWinner(winnerIndex: number) {
     } catch (error) {
       console.error('Error auto-saving tournament during play:', error);
       // Auto-save failure shouldn't stop tournament play, but log the error
+    }
+  }
+}
+
+function handleSkipTask(task: any) {
+  // Mark the task as skipped
+  task.__skipped = true;
+
+  // If this task is currently in a match, automatically make it lose
+  if (currentMatch.value && tournament.value) {
+    const taskUuid = getUuidByTask(task);
+    if (!taskUuid) return;
+
+    // Check if this task is in the current match
+    if (currentMatch.value.player1 === taskUuid) {
+      // Task 1 is skipped, so task 2 wins (winner index 1)
+      chooseWinner(1);
+    } else if (currentMatch.value.player2 === taskUuid) {
+      // Task 2 is skipped, so task 1 wins (winner index 0)
+      chooseWinner(0);
     }
   }
 }

@@ -25,6 +25,27 @@
     </p>
 
     <div
+      v-if="tournamentType === 'samplesort'"
+      class="phase-info"
+      style="
+        margin: 10px 0;
+        padding: 10px;
+        background-color: #f0f8ff;
+        border-radius: 4px;
+        border-left: 4px solid #28a745;
+      "
+    >
+      <div style="display: flex; justify-content: space-between; align-items: center">
+        <span style="font-weight: bold; color: #28a745">
+          {{ currentBracketType === 'samplesort-sample' ? 'Phase 1: Ranking Sample' : 'Phase 2: Inserting Tasks' }}
+        </span>
+        <span style="font-size: 14px; color: #666">
+          {{ currentBracketType === 'samplesort-sample' ? 'Building anchor points' : 'Finding positions relative to anchors' }}
+        </span>
+      </div>
+    </div>
+
+    <div
       v-if="tournamentType === 'double'"
       class="bracket-info"
       style="

@@ -48,6 +48,20 @@
             No additional fields selected
           </div>
         </div>
+        <button
+          v-if="leftTask && !isTaskSkipped(leftTask)"
+          title="Mark as done/unrankable"
+          class="skip-button"
+          @click.stop="skipTask(leftTask)"
+        >
+          Skip
+        </button>
+        <div
+          v-if="leftTask && isTaskSkipped(leftTask)"
+          class="skipped-indicator"
+        >
+          SKIPPED
+        </div>
       </button>
       <div class="vs">VS</div>
       <button
@@ -82,6 +96,20 @@
             No additional fields selected
           </div>
         </div>
+        <button
+          v-if="rightTask && !isTaskSkipped(rightTask)"
+          title="Mark as done/unrankable"
+          class="skip-button"
+          @click.stop="skipTask(rightTask)"
+        >
+          Skip
+        </button>
+        <div
+          v-if="rightTask && isTaskSkipped(rightTask)"
+          class="skipped-indicator"
+        >
+          SKIPPED
+        </div>
       </button>
     </div>
   </div>
@@ -103,6 +131,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'choose-winner': [winner: number];
+  'skip-task': [task: Task];
 }>();
 
 // Randomly decide which task goes on which side
@@ -122,6 +151,15 @@ function getTaskTitle(task: Task | null): string {
 function isUrl(value: any): boolean {
   if (typeof value !== 'string') return false;
   return value.startsWith('http://') || value.startsWith('https://');
+}
+
+function isTaskSkipped(task: Task | null): boolean {
+  if (!task) return false;
+  return task.__skipped === true;
+}
+
+function skipTask(task: Task): void {
+  emit('skip-task', task);
 }
 
 function chooseWinner(visualSideIndex: number): void {
@@ -192,5 +230,32 @@ onMounted(() => {
 
 .task-field-url:visited {
   color: #8e44ad;
+}
+
+.skip-button {
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+.skip-button:hover {
+  background: #c0392b;
+}
+
+.skipped-indicator {
+  background: #95a5a6;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-top: 8px;
+  text-align: center;
+  font-weight: bold;
 }
 </style>
