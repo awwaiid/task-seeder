@@ -350,4 +350,257 @@ describe('Tournament Serialization Round Trip', () => {
       bracket: 'main',
     });
   });
+
+  describe('Tournament Object Round Trip Tests', () => {
+    it('should serialize and deserialize single elimination tournament perfectly', () => {
+      // Create tournament
+      const tournament = createTournament('single', mockTaskUUIDs, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Play some matches
+      let match = tournament.getNextMatch();
+      expect(match).toBeTruthy();
+
+      if (match) {
+        tournament.reportResult(match, mockTaskUUIDs[0]!);
+        
+        // Get the next match if available
+        const secondMatch = tournament.getNextMatch();
+        if (secondMatch) {
+          tournament.reportResult(secondMatch, mockTaskUUIDs[2]!);
+        }
+      }
+
+      // Export state
+      const exportedState = tournament.exportState();
+
+      // Restore tournament from state using static method
+      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Compare all properties that should be identical
+      expect(actualRestored.type).toBe(tournament.type);
+      expect(actualRestored.originalEntrants).toEqual(tournament.originalEntrants);
+      expect(actualRestored.taskNameColumn).toBe(tournament.taskNameColumn);
+      expect(actualRestored.isComplete()).toBe(tournament.isComplete());
+      expect(actualRestored.getCurrentMatchNumber()).toBe(tournament.getCurrentMatchNumber());
+      expect(actualRestored.getTotalMatches()).toBe(tournament.getTotalMatches());
+      expect(actualRestored.getTotalRounds()).toBe(tournament.getTotalRounds());
+      expect(actualRestored.remainingParticipants).toEqual(tournament.remainingParticipants);
+
+      // If tournament is complete, rankings should match
+      if (tournament.isComplete()) {
+        expect(actualRestored.getRankings()).toEqual(tournament.getRankings());
+        expect(actualRestored.getWinner()).toBe(tournament.getWinner());
+      }
+
+      // Match history should be preserved for each participant
+      for (const participantId of mockTaskUUIDs) {
+        const originalHistory = tournament.getMatchHistoryForParticipant(participantId);
+        const restoredHistory = actualRestored.getMatchHistoryForParticipant(participantId);
+        expect(restoredHistory).toEqual(originalHistory);
+      }
+    });
+
+    it('should serialize and deserialize double elimination tournament perfectly', () => {
+      // Create double elimination tournament
+      const tournament = createTournament('double', mockTaskUUIDs, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Play some matches
+      let match = tournament.getNextMatch();
+      let matchCount = 0;
+      const maxMatches = 3; // Play a few matches but don't complete
+
+      while (match && matchCount < maxMatches) {
+        // Choose winner (first participant generally wins)
+        const winner = mockTaskUUIDs[0]!;
+        tournament.reportResult(match, winner);
+        match = tournament.getNextMatch();
+        matchCount++;
+      }
+
+      // Export state
+      const exportedState = tournament.exportState();
+
+      // Restore tournament from state using static method
+      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Compare all properties
+      expect(actualRestored.type).toBe(tournament.type);
+      expect(actualRestored.originalEntrants).toEqual(tournament.originalEntrants);
+      expect(actualRestored.taskNameColumn).toBe(tournament.taskNameColumn);
+      expect(actualRestored.isComplete()).toBe(tournament.isComplete());
+      expect(actualRestored.getCurrentMatchNumber()).toBe(tournament.getCurrentMatchNumber());
+      expect(actualRestored.getTotalMatches()).toBe(tournament.getTotalMatches());
+      expect(actualRestored.remainingParticipants).toEqual(tournament.remainingParticipants);
+
+      // Verify next match is the same
+      const originalNext = tournament.getNextMatch();
+      const restoredNext = actualRestored.getNextMatch();
+      
+      if (originalNext && restoredNext) {
+        expect(restoredNext.round).toBe(originalNext.round);
+        expect(restoredNext.bracket).toBe(originalNext.bracket);
+        expect([restoredNext.player1, restoredNext.player2].sort()).toEqual(
+          [originalNext.player1, originalNext.player2].sort()
+        );
+      } else {
+        expect(originalNext).toBe(restoredNext); // Both should be null
+      }
+    });
+
+    it('should serialize and deserialize QuickSort tournament perfectly', () => {
+      // Create QuickSort tournament
+      const tournament = createTournament('quicksort', mockTaskUUIDs, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Play some comparisons
+      let match = tournament.getNextMatch();
+      let matchCount = 0;
+      const maxMatches = 2; // Play a couple comparisons
+
+      while (match && matchCount < maxMatches) {
+        // Choose winner based on alphabetical order for consistency
+        const winner = [match.player1, match.player2].sort()[0]!;
+        tournament.reportResult(match, winner);
+        match = tournament.getNextMatch();
+        matchCount++;
+      }
+
+      // Export state
+      const exportedState = tournament.exportState();
+
+      // Restore tournament from state using static method
+      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Compare all properties
+      expect(actualRestored.type).toBe(tournament.type);
+      expect(actualRestored.originalEntrants).toEqual(tournament.originalEntrants);
+      expect(actualRestored.taskNameColumn).toBe(tournament.taskNameColumn);
+      expect(actualRestored.isComplete()).toBe(tournament.isComplete());
+      expect(actualRestored.getCurrentMatchNumber()).toBe(tournament.getCurrentMatchNumber());
+      expect(actualRestored.getTotalMatches()).toBe(tournament.getTotalMatches());
+      expect(actualRestored.remainingParticipants).toEqual(tournament.remainingParticipants);
+
+      // Verify internal state for QuickSort
+      expect((actualRestored as any).participants).toEqual((tournament as any).participants);
+      expect((actualRestored as any).completedComparisons).toBe((tournament as any).completedComparisons);
+      expect((actualRestored as any).comparisonResults.size).toBe((tournament as any).comparisonResults.size);
+
+      // Verify next match is the same
+      const originalNext = tournament.getNextMatch();
+      const restoredNext = actualRestored.getNextMatch();
+      
+      if (originalNext && restoredNext) {
+        expect([restoredNext.player1, restoredNext.player2].sort()).toEqual(
+          [originalNext.player1, originalNext.player2].sort()
+        );
+      } else {
+        expect(originalNext).toBe(restoredNext);
+      }
+    });
+
+    it('should handle completed tournaments with final results', () => {
+      // Create and complete a small tournament
+      const tournament = createTournament('single', mockTaskUUIDs.slice(0, 2), {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Complete the tournament
+      const match = tournament.getNextMatch();
+      expect(match).toBeTruthy();
+      
+      if (match) {
+        tournament.reportResult(match, mockTaskUUIDs[0]!);
+      }
+
+      expect(tournament.isComplete()).toBe(true);
+
+      // Export state
+      const exportedState = tournament.exportState();
+      expect(exportedState.isComplete).toBe(true);
+      expect((exportedState as any).finalResults).toBeDefined();
+
+      // Restore tournament from state using static method
+      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Verify completion state
+      expect(actualRestored.isComplete()).toBe(true);
+      expect(actualRestored.getRankings()).toEqual(tournament.getRankings());
+      expect(actualRestored.getWinner()).toBe(tournament.getWinner());
+      expect(actualRestored.getNextMatch()).toBeNull();
+
+      // Final results should be identical
+      expect(actualRestored.getRankings()).toEqual([mockTaskUUIDs[0], mockTaskUUIDs[1]]);
+      expect(actualRestored.getWinner()).toBe(mockTaskUUIDs[0]);
+    });
+
+    it('should preserve all match data through serialization', () => {
+      // Create tournament and play all matches
+      const tournament = createTournament('single', mockTaskUUIDs, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      const allMatches = [];
+      let match = tournament.getNextMatch();
+      
+      while (match) {
+        allMatches.push({
+          round: match.round,
+          player1: match.player1,
+          player2: match.player2,
+        });
+        
+        // Always choose first player as winner for consistency
+        tournament.reportResult(match, match.player1!);
+        match = tournament.getNextMatch();
+      }
+
+      expect(tournament.isComplete()).toBe(true);
+
+      // Export and restore
+      const exportedState = tournament.exportState();
+      const actualRestored = (tournament.constructor as any).fromStoredState(exportedState, {
+        taskNameColumn: 'name',
+        seedingMethod: 'order',
+      });
+
+      // Verify all completed matches are preserved
+      const originalMatches = tournament.matches;
+      const restoredMatches = actualRestored.matches;
+
+      expect(restoredMatches).toHaveLength(originalMatches.length);
+
+      // Check each match in detail
+      for (let i = 0; i < originalMatches.length; i++) {
+        const orig = originalMatches[i];
+        const restored = restoredMatches[i];
+        
+        expect(restored.winner).toBe(orig.winner);
+        expect(restored.loser).toBe(orig.loser);
+        expect(restored.player1).toBe(orig.player1);
+        expect(restored.player2).toBe(orig.player2);
+      }
+    });
+  });
 });

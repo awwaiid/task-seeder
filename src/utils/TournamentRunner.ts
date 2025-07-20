@@ -499,10 +499,10 @@ export class Tournament {
         return tournament;
       }
 
-      // For incomplete tournaments, use the match replay logic
+      // For incomplete tournaments, restore the exact tournament state
       const savedTournamentState = state.tournamentState;
-      if (savedTournamentState && savedTournamentState.matches) {
-        console.log('Restoring tournament by replaying matches:', {
+      if (savedTournamentState) {
+        console.log('Restoring tournament by directly setting state:', {
           hasMatches: !!savedTournamentState.matches,
           matchesCount: savedTournamentState.matches?.length || 0,
           hasPlayers: !!savedTournamentState.players,
@@ -510,82 +510,54 @@ export class Tournament {
           status: savedTournamentState.status,
         });
 
-        // Get completed matches from the saved state
-        const completedMatches = savedTournamentState.matches
-          .filter(
-            (match: any) =>
-              !match.active &&
-              match.player1?.id &&
-              match.player2?.id &&
-              typeof match.player1.win === 'number' &&
-              typeof match.player2.win === 'number'
-          )
-          .sort((a: any, b: any) => a.round - b.round || a.match - b.match);
-
-        console.log(
-          'Found completed matches to replay:',
-          completedMatches.length
-        );
-
-        // Replay each completed match using exact match IDs
-        for (const savedMatch of completedMatches) {
-          // Find the corresponding match by exact match structure
-          const currentMatch = tournament.tournament.matches.find((m: any) => {
-            // Match by players and round
-            return (
-              m.round === savedMatch.round &&
-              ((m.player1?.id === savedMatch.player1.id &&
-                m.player2?.id === savedMatch.player2.id) ||
-                (m.player1?.id === savedMatch.player2.id &&
-                  m.player2?.id === savedMatch.player1.id))
-            );
-          });
-
-          if (currentMatch) {
-            try {
-              // Determine the correct win values based on player order
-              let player1Win = savedMatch.player1.win || 0;
-              let player2Win = savedMatch.player2.win || 0;
-
-              // If players are in reverse order, swap the win counts
-              if (currentMatch.player1?.id === savedMatch.player2.id) {
-                player1Win = savedMatch.player2.win || 0;
-                player2Win = savedMatch.player1.win || 0;
-              }
-
-              tournament.tournament.enterResult(
-                currentMatch.id,
-                player1Win,
-                player2Win,
-                savedMatch.player1.draw || 0
-              );
-
-              console.log('Successfully replayed match:', {
-                matchId: currentMatch.id,
-                round: savedMatch.round,
-                player1: currentMatch.player1?.id,
-                player2: currentMatch.player2?.id,
-                player1Win,
-                player2Win,
-              });
-            } catch (error) {
-              console.warn('Error replaying match result:', error, savedMatch);
-            }
-          } else {
-            console.warn('Could not find match to replay:', {
-              round: savedMatch.round,
-              player1: savedMatch.player1.id,
-              player2: savedMatch.player2.id,
-            });
-          }
+        // Selectively restore tournament state without breaking tournament-organizer objects
+        // Only restore the essential data structures, not the player objects with methods
+        if (savedTournamentState.matches) {
+          tournament.tournament.matches = savedTournamentState.matches;
         }
+        if (savedTournamentState.status) {
+          tournament.tournament.status = savedTournamentState.status;
+        }
+        if (savedTournamentState.round !== undefined) {
+          tournament.tournament.round = savedTournamentState.round;
+        }
+        
+        // Update player states while preserving their methods
+        if (savedTournamentState.players) {
+          savedTournamentState.players.forEach((savedPlayer: any) => {
+            const currentPlayer = tournament.tournament.players.find(
+              (p: any) => p.id === savedPlayer.id
+            );
+            if (currentPlayer) {
+              // Update player properties without overwriting the object
+              currentPlayer.active = savedPlayer.active;
+              currentPlayer.matches = savedPlayer.matches || [];
+              // Preserve other properties that might affect tournament state
+              if (savedPlayer.hasOwnProperty('win')) currentPlayer.win = savedPlayer.win;
+              if (savedPlayer.hasOwnProperty('loss')) currentPlayer.loss = savedPlayer.loss;
+              if (savedPlayer.hasOwnProperty('draw')) currentPlayer.draw = savedPlayer.draw;
+            }
+          });
+        }
+        
+        // Preserve other essential state without overwriting objects
+        if (savedTournamentState.seating) {
+          tournament.tournament.seating = savedTournamentState.seating;
+        }
+        if (savedTournamentState.sorting) {
+          tournament.tournament.sorting = savedTournamentState.sorting;
+        }
+        if (savedTournamentState.scoring) {
+          tournament.tournament.scoring = savedTournamentState.scoring;
+        }
+        tournament.tournamentId = savedTournamentState.id || tournament.tournamentId;
 
         console.log(
           'Tournament restoration completed, status:',
           tournament.tournament.status
         );
       } else {
-        console.log('No matches to replay, using fresh tournament');
+        console.log('No tournament state to restore, using fresh tournament');
       }
 
       return tournament;
@@ -611,6 +583,7 @@ export class Tournament {
     uuids: ParticipantUUID[],
     seedingMethod: SeedingMethod
   ): ParticipantUUID[] {
+    console.log("Applying seeding method: ", seedingMethod);
     switch (seedingMethod) {
       case 'random': {
         // Create a copy and shuffle it
@@ -1349,6 +1322,7 @@ export class QuickSortTournament {
     const tournament = new QuickSortTournament(state.originalEntrants, {
       ...options,
       taskNameColumn: state.taskNameColumn,
+      seedingMethod: 'order', // Preserve original order when restoring
     });
 
     // Check if this is a completed tournament with final results
