@@ -3,10 +3,10 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BracketStorage } from '../BracketStorage';
-import { TournamentAPI } from '../TournamentAPI';
-import { createTournament } from '../TournamentRunner';
-import type { ParticipantUUID } from '../../types/tournament';
+import { BracketStorage } from '../../src/utils/BracketStorage';
+import { TournamentAPI } from '../../src/utils/TournamentAPI';
+import { createTournament } from '../../src/utils/TournamentRunner';
+import type { ParticipantUUID } from '../../src/types/tournament';
 
 describe('Tournament Serialization Round Trip', () => {
   let mockTasks: any[];

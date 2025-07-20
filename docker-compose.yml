@@ -1,11 +1,8 @@
-version: '3.8'
-
 services:
   taskseeder:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: taskseeder
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -21,18 +18,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    labels:
-      # Labels for reverse proxy (nginx, traefik, etc.)
-      - "traefik.enable=true"
-      - "traefik.http.routers.taskseeder.rule=Host(`taskseeder.yourdomain.com`)"
-      - "traefik.http.routers.taskseeder.tls=true"
-      - "traefik.http.routers.taskseeder.tls.certresolver=letsencrypt"
-      - "traefik.http.services.taskseeder.loadbalancer.server.port=3000"
 
 volumes:
   taskseeder_data:
     driver: local
 
-networks:
-  default:
-    name: taskseeder_network

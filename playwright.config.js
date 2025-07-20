@@ -21,9 +21,12 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm start',
+    command: 'NODE_ENV=test npm start',
     url: 'http://localhost:3000',
     reuseExistingServer: false,
     timeout: 120 * 1000,
+    env: {
+      NODE_ENV: 'test',
+    },
   },
 });

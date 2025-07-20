@@ -29,8 +29,8 @@ WORKDIR /app
 RUN apk add --no-cache dumb-init
 
 # Create app user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S taskseeder -u 1001
+RUN addgroup -g 1000 -S nodejs
+RUN adduser -S taskseeder -u 1000
 
 # Copy package files
 COPY package*.json ./

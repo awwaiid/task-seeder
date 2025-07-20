@@ -209,24 +209,12 @@ export class BracketStorage {
 
     // Restore tournament using the new API
     if (state.tournament) {
-      try {
-        state.tournament = Tournament.fromStoredState(state.tournament, {
-          ...options,
-          taskNameColumn: bracketData.taskNameColumn || 'task',
-        });
-        state.tasks = bracketData.csvData; // Tasks are just the participants
-        state.currentMatch = null; // Current match is managed by tournament-organizer
-      } catch (error) {
-        console.error('Error restoring tournament from stored state:', error);
-        console.warn(
-          'Tournament restoration failed. Tournament will need to be recreated.'
-        );
-        // Don't create a fallback tournament here - let TournamentManager handle it
-        state.tournament = null;
-        state.tasks = bracketData.csvData;
-        state.currentMatch = null;
-        state.matchHistory = new Map();
-      }
+      state.tournament = Tournament.fromStoredState(state.tournament, {
+        ...options,
+        taskNameColumn: bracketData.taskNameColumn || 'task',
+      });
+      state.tasks = bracketData.csvData; // Tasks are just the participants
+      state.currentMatch = null; // Current match is managed by tournament-organizer
     }
 
     return state;

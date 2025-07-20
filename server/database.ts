@@ -36,7 +36,13 @@ export class Database {
       process.env.NODE_ENV === 'production'
         ? path.join(process.cwd(), 'data')
         : __dirname;
-    this.dbPath = path.join(dataDir, 'taskseeder.db');
+    
+    // Use separate database files for testing to avoid conflicts
+    const dbName = process.env.NODE_ENV === 'test' || process.env.CI
+      ? `taskseeder-test-${process.pid}-${Date.now()}.db`
+      : 'taskseeder.db';
+    
+    this.dbPath = path.join(dataDir, dbName);
   }
 
   async init(): Promise<void> {
@@ -260,27 +266,41 @@ export class Database {
     `;
 
     return new Promise((resolve, reject) => {
-      this.db!.run(
-        query,
-        [
-          tournament.id,
-          tournament.name,
-          tournament.status,
-          tournament.tournamentType,
-          tournament.data,
-          tournament.isShared,
-          tournament.shareId || null,
-        ],
-        function (err) {
-          if (err) {
-            console.error('Error saving tournament:', err);
-            reject(err);
-          } else {
-            console.log('Tournament saved with ID:', tournament.id);
-            resolve();
+      // Use transaction for atomic operation
+      const db = this.db!;
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        db.run(
+          query,
+          [
+            tournament.id,
+            tournament.name,
+            tournament.status,
+            tournament.tournamentType,
+            tournament.data,
+            tournament.isShared,
+            tournament.shareId || null,
+          ],
+          function (err) {
+            if (err) {
+              console.error('Error saving tournament:', err);
+              db.run('ROLLBACK');
+              reject(err);
+            } else {
+              db.run('COMMIT', (commitErr) => {
+                if (commitErr) {
+                  console.error('Error committing tournament save:', commitErr);
+                  reject(commitErr);
+                } else {
+                  console.log('Tournament saved with ID:', tournament.id);
+                  resolve();
+                }
+              });
+            }
           }
-        }
-      );
+        );
+      });
     });
   }
 

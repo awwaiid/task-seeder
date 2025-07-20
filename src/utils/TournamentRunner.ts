@@ -158,6 +158,7 @@ export class Tournament {
     );
 
     if (activeMatches.length === 0) {
+      console.log('No active matches found. Status:', this.tournament.status);
       return null;
     }
 
@@ -220,14 +221,7 @@ export class Tournament {
     const complete =
       this.tournament.status === 'complete' ||
       (this.tournament.status === 'stage-one' && allMatchesComplete);
-    console.log(
-      'isComplete() called, status:',
-      this.tournament?.status,
-      'allMatchesComplete:',
-      allMatchesComplete,
-      'complete:',
-      complete
-    );
+    
     return complete;
   }
 
@@ -499,65 +493,42 @@ export class Tournament {
         return tournament;
       }
 
-      // For incomplete tournaments, restore the exact tournament state
+      // For incomplete tournaments, restore by completely replacing the tournament object
       const savedTournamentState = state.tournamentState;
       if (savedTournamentState) {
-        console.log('Restoring tournament by directly setting state:', {
-          hasMatches: !!savedTournamentState.matches,
-          matchesCount: savedTournamentState.matches?.length || 0,
-          hasPlayers: !!savedTournamentState.players,
-          playersCount: savedTournamentState.players?.length || 0,
-          status: savedTournamentState.status,
-        });
-
-        // Selectively restore tournament state without breaking tournament-organizer objects
-        // Only restore the essential data structures, not the player objects with methods
-        if (savedTournamentState.matches) {
-          tournament.tournament.matches = savedTournamentState.matches;
-        }
-        if (savedTournamentState.status) {
-          tournament.tournament.status = savedTournamentState.status;
-        }
-        if (savedTournamentState.round !== undefined) {
-          tournament.tournament.round = savedTournamentState.round;
-        }
+        // COMPLETE REPLACEMENT: Instead of patching a fresh tournament,
+        // directly restore the saved tournament object state
         
-        // Update player states while preserving their methods
-        if (savedTournamentState.players) {
-          savedTournamentState.players.forEach((savedPlayer: any) => {
-            const currentPlayer = tournament.tournament.players.find(
-              (p: any) => p.id === savedPlayer.id
-            );
-            if (currentPlayer) {
-              // Update player properties without overwriting the object
-              currentPlayer.active = savedPlayer.active;
-              currentPlayer.matches = savedPlayer.matches || [];
-              // Preserve other properties that might affect tournament state
-              if (savedPlayer.hasOwnProperty('win')) currentPlayer.win = savedPlayer.win;
-              if (savedPlayer.hasOwnProperty('loss')) currentPlayer.loss = savedPlayer.loss;
-              if (savedPlayer.hasOwnProperty('draw')) currentPlayer.draw = savedPlayer.draw;
+        // Create a minimal wrapper object that preserves the saved tournament data
+        // but provides the minimal interface needed by our Tournament class
+        const restoredTournamentObject = {
+          ...savedTournamentState,
+          // Add minimal methods that might be needed
+          createPlayer: function() { /* no-op for restored tournaments */ },
+          enterResult: function(matchId: any, p1wins: number, p2wins: number) {
+            // Find and update the match
+            const match = this.matches.find((m: any) => m.id === matchId);
+            if (match) {
+              match.active = false;
+              if (match.player1) {
+                match.player1.win = p1wins;
+                match.player1.loss = p2wins;
+              }
+              if (match.player2) {
+                match.player2.win = p2wins;
+                match.player2.loss = p1wins;
+              }
             }
-          });
-        }
+          },
+          end: function() {
+            this.status = 'complete';
+          }
+        };
         
-        // Preserve other essential state without overwriting objects
-        if (savedTournamentState.seating) {
-          tournament.tournament.seating = savedTournamentState.seating;
-        }
-        if (savedTournamentState.sorting) {
-          tournament.tournament.sorting = savedTournamentState.sorting;
-        }
-        if (savedTournamentState.scoring) {
-          tournament.tournament.scoring = savedTournamentState.scoring;
-        }
+        tournament.tournament = restoredTournamentObject;
         tournament.tournamentId = savedTournamentState.id || tournament.tournamentId;
-
-        console.log(
-          'Tournament restoration completed, status:',
-          tournament.tournament.status
-        );
       } else {
-        console.log('No tournament state to restore, using fresh tournament');
+        throw new Error('No tournament state found in saved data - cannot restore tournament');
       }
 
       return tournament;
