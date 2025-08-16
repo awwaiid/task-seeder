@@ -1400,23 +1400,25 @@ export class SampleSortTournament {
   private sampleParticipants: ParticipantUUID[];
   private remainingParticipants: ParticipantUUID[];
   private sortedAnchors: ParticipantUUID[] = [];
-  
+
   // Phase 1: QuickSort sample
   private sampleQuickSort?: QuickSortTournament;
-  
+
   // Phase 2: Binary insertion
   private currentInsertionTask?: ParticipantUUID;
-  private insertionState?: {
-    task: ParticipantUUID;
-    low: number;
-    high: number;
-    currentAnchorIndex: number;
-  } | undefined;
-  
+  private insertionState?:
+    | {
+        task: ParticipantUUID;
+        low: number;
+        high: number;
+        currentAnchorIndex: number;
+      }
+    | undefined;
+
   private completedComparisons: number = 0;
   private totalComparisons: number = 0;
   private phase: 'sample' | 'insertion' | 'complete' = 'sample';
-  
+
   constructor(entrants: ParticipantUUID[], options: TournamentOptions = {}) {
     if (!entrants || entrants.length < 1) {
       throw new Error('Tournament requires at least 1 entrant');
@@ -1424,11 +1426,11 @@ export class SampleSortTournament {
 
     this.taskNameColumn = options.taskNameColumn;
     this.originalEntrants = [...entrants];
-    
+
     // Apply seeding
     const seedingMethod = options.seedingMethod || 'random';
     this.allParticipants = this._applySeedingMethod(entrants, seedingMethod);
-    
+
     // Handle edge cases
     if (this.allParticipants.length === 1) {
       this.phase = 'complete';
@@ -1437,34 +1439,41 @@ export class SampleSortTournament {
       this.remainingParticipants = [];
       return;
     }
-    
+
     // Calculate sample size (proportional: sqrt(n))
-    const sampleSize = Math.max(3, Math.min(50, Math.ceil(Math.sqrt(this.allParticipants.length))));
-    
+    const sampleSize = Math.max(
+      3,
+      Math.min(50, Math.ceil(Math.sqrt(this.allParticipants.length)))
+    );
+
     // Create sample and remaining sets
     this.sampleParticipants = this.allParticipants.slice(0, sampleSize);
     this.remainingParticipants = this.allParticipants.slice(sampleSize);
-    
+
     // Estimate total comparisons
     const sampleComparisons = Math.ceil(sampleSize * Math.log2(sampleSize));
-    const insertionComparisons = this.remainingParticipants.length * Math.ceil(Math.log2(sampleSize));
+    const insertionComparisons =
+      this.remainingParticipants.length * Math.ceil(Math.log2(sampleSize));
     this.totalComparisons = sampleComparisons + insertionComparisons;
-    
+
     // Initialize Phase 1: QuickSort the sample
     if (this.sampleParticipants.length > 1) {
-      this.sampleQuickSort = new QuickSortTournament(this.sampleParticipants, options);
+      this.sampleQuickSort = new QuickSortTournament(
+        this.sampleParticipants,
+        options
+      );
     } else {
       // Single sample item, skip to insertion phase
       this.sortedAnchors = [...this.sampleParticipants];
       this._initializeInsertionPhase();
     }
   }
-  
+
   getNextMatch(): ActiveMatch | null {
     if (this.isComplete()) {
       return null;
     }
-    
+
     // Phase 1: Sample QuickSort
     if (this.phase === 'sample' && this.sampleQuickSort) {
       const match = this.sampleQuickSort.getNextMatch();
@@ -1472,7 +1481,7 @@ export class SampleSortTournament {
         // Adjust match metadata for sample phase
         return {
           ...match,
-          bracket: 'samplesort-sample'
+          bracket: 'samplesort-sample',
         };
       } else {
         // Sample sorting complete, get results and move to insertion phase
@@ -1481,15 +1490,15 @@ export class SampleSortTournament {
         return this.getNextMatch(); // Recursive call for insertion phase
       }
     }
-    
+
     // Phase 2: Binary insertion
     if (this.phase === 'insertion') {
       return this._getNextInsertionMatch();
     }
-    
+
     return null;
   }
-  
+
   private _initializeInsertionPhase(): void {
     this.phase = 'insertion';
     const nextTask = this.remainingParticipants.shift();
@@ -1499,53 +1508,53 @@ export class SampleSortTournament {
         task: nextTask,
         low: 0,
         high: this.sortedAnchors.length - 1,
-        currentAnchorIndex: Math.floor(this.sortedAnchors.length / 2)
+        currentAnchorIndex: Math.floor(this.sortedAnchors.length / 2),
       };
     } else {
       this.phase = 'complete';
     }
   }
-  
+
   private _getNextInsertionMatch(): ActiveMatch | null {
     if (!this.currentInsertionTask || !this.insertionState) {
       return null;
     }
-    
+
     const { task, currentAnchorIndex } = this.insertionState;
     const anchor = this.sortedAnchors[currentAnchorIndex];
-    
+
     if (!anchor) {
       // No valid anchor, insert at position
       this._insertTaskAtPosition(task, currentAnchorIndex);
       return this.getNextMatch(); // Get next task
     }
-    
+
     return {
       player1: task,
       player2: anchor,
       round: this.remainingParticipants.length + 1, // Remaining tasks + current
       matchInRound: 1,
       bracket: 'samplesort-insertion',
-      originalMatch: { 
+      originalMatch: {
         type: 'insertion',
-        anchorIndex: currentAnchorIndex 
-      }
+        anchorIndex: currentAnchorIndex,
+      },
     };
   }
-  
+
   reportResult(match: ActiveMatch, winnerUuid: ParticipantUUID): void {
     this.completedComparisons++;
-    
+
     // Phase 1: Delegate to sample QuickSort
     if (this.phase === 'sample' && this.sampleQuickSort) {
       this.sampleQuickSort.reportResult(match, winnerUuid);
       return;
     }
-    
+
     // Phase 2: Handle binary insertion
     if (this.phase === 'insertion' && this.insertionState) {
       const { task, low, high, currentAnchorIndex } = this.insertionState;
-      
+
       if (winnerUuid === task) {
         // Task beats anchor, try higher position
         if (currentAnchorIndex === 0) {
@@ -1557,7 +1566,7 @@ export class SampleSortTournament {
             task,
             low,
             high: currentAnchorIndex - 1,
-            currentAnchorIndex: Math.floor((low + currentAnchorIndex - 1) / 2)
+            currentAnchorIndex: Math.floor((low + currentAnchorIndex - 1) / 2),
           };
         }
       } else {
@@ -1571,24 +1580,27 @@ export class SampleSortTournament {
             task,
             low: currentAnchorIndex + 1,
             high,
-            currentAnchorIndex: Math.floor((currentAnchorIndex + 1 + high) / 2)
+            currentAnchorIndex: Math.floor((currentAnchorIndex + 1 + high) / 2),
           };
         }
       }
-      
+
       // Check if binary search is complete
       if (this.insertionState.low > this.insertionState.high) {
         // Insert at the determined position
-        const insertPosition = winnerUuid === task ? this.insertionState.high + 1 : this.insertionState.low;
+        const insertPosition =
+          winnerUuid === task
+            ? this.insertionState.high + 1
+            : this.insertionState.low;
         this._insertTaskAtPosition(task, insertPosition);
       }
     }
   }
-  
+
   private _insertTaskAtPosition(task: ParticipantUUID, position: number): void {
     // Insert task into sorted anchors at the specified position
     this.sortedAnchors.splice(position, 0, task);
-    
+
     // Move to next task
     const nextTask = this.remainingParticipants.shift();
     if (nextTask) {
@@ -1597,7 +1609,7 @@ export class SampleSortTournament {
         task: nextTask,
         low: 0,
         high: this.sortedAnchors.length - 1,
-        currentAnchorIndex: Math.floor(this.sortedAnchors.length / 2)
+        currentAnchorIndex: Math.floor(this.sortedAnchors.length / 2),
       };
     } else {
       // All tasks inserted, tournament complete
@@ -1606,61 +1618,66 @@ export class SampleSortTournament {
       this.insertionState = undefined as any;
     }
   }
-  
+
   isComplete(): boolean {
     if (this._isCompleteFromStorage && this._finalResults) {
       return true;
     }
     return this.phase === 'complete';
   }
-  
+
   getTotalMatches(): number {
     return this.totalComparisons;
   }
-  
+
   getCurrentMatchNumber(): number {
     return this.completedComparisons + 1;
   }
-  
+
   getFinalRanking(): ParticipantUUID[] {
     if (!this.isComplete()) {
       throw new Error('Tournament is not complete');
     }
     return [...this.sortedAnchors];
   }
-  
+
   getRankings(): ParticipantUUID[] {
     if (!this.isComplete()) {
       throw new Error('Tournament is not complete');
     }
     return [...this.sortedAnchors];
   }
-  
+
   // Additional methods for compatibility with Tournament interface
   getTotalRounds(): number {
-    return this.phase === 'complete' ? 2 : (this.phase === 'insertion' ? 2 : 1);
+    return this.phase === 'complete' ? 2 : this.phase === 'insertion' ? 2 : 1;
   }
-  
+
   getMatchesInRound(round: number): number {
     if (round === 1) {
       // Sample phase
-      return this.sampleParticipants.length > 1 ? Math.ceil(this.sampleParticipants.length * Math.log2(this.sampleParticipants.length)) : 0;
+      return this.sampleParticipants.length > 1
+        ? Math.ceil(
+            this.sampleParticipants.length *
+              Math.log2(this.sampleParticipants.length)
+          )
+        : 0;
     } else if (round === 2) {
       // Insertion phase
       return this.remainingParticipants.length;
     }
     return 0;
   }
-  
+
   get matches(): any[] {
     // Return empty array since we don't track completed matches like Tournament class
     return [];
   }
-  
+
   exportState(): any {
     return this.getState();
   }
-  
+
   // Serialization support
   getState(): any {
     return {
@@ -1678,13 +1695,19 @@ export class SampleSortTournament {
       insertionState: this.insertionState,
       // Note: sampleQuickSort state not serialized - will restart sample phase if needed
       _finalResults: this._finalResults,
-      _isCompleteFromStorage: this._isCompleteFromStorage
+      _isCompleteFromStorage: this._isCompleteFromStorage,
     };
   }
-  
-  static fromState(state: any, options: TournamentOptions = {}): SampleSortTournament {
-    const tournament = new SampleSortTournament(state.originalEntrants, options);
-    
+
+  static fromState(
+    state: any,
+    options: TournamentOptions = {}
+  ): SampleSortTournament {
+    const tournament = new SampleSortTournament(
+      state.originalEntrants,
+      options
+    );
+
     // Restore state
     tournament.allParticipants = state.allParticipants || [];
     tournament.sampleParticipants = state.sampleParticipants || [];
@@ -1697,15 +1720,21 @@ export class SampleSortTournament {
     tournament.insertionState = state.insertionState;
     tournament._finalResults = state._finalResults;
     tournament._isCompleteFromStorage = state._isCompleteFromStorage;
-    
+
     // If we're in sample phase, recreate the QuickSort tournament
-    if (tournament.phase === 'sample' && tournament.sampleParticipants.length > 1) {
-      tournament.sampleQuickSort = new QuickSortTournament(tournament.sampleParticipants, options);
+    if (
+      tournament.phase === 'sample' &&
+      tournament.sampleParticipants.length > 1
+    ) {
+      tournament.sampleQuickSort = new QuickSortTournament(
+        tournament.sampleParticipants,
+        options
+      );
     }
-    
+
     return tournament;
   }
-  
+
   private _applySeedingMethod(
     participants: ParticipantUUID[],
     seedingMethod: SeedingMethod

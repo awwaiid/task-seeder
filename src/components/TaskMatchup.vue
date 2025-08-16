@@ -8,7 +8,10 @@
         font-size: 12px;
       "
     >
-      <div v-if="props.preserveOrder" style="color: #28a745; font-weight: bold; margin-bottom: 5px;">
+      <div
+        v-if="props.preserveOrder"
+        style="color: #28a745; font-weight: bold; margin-bottom: 5px"
+      >
         📍 Comparing new task vs anchor point
       </div>
       Click or use ← → arrow keys to select the winner
@@ -276,12 +279,12 @@ onMounted(() => {
 }
 
 .new-task .task-title::before {
-  content: "🆕 ";
+  content: '🆕 ';
   color: #17a2b8;
 }
 
 .anchor-task .task-title::before {
-  content: "⚓ ";
+  content: '⚓ ';
   color: #28a745;
 }
 </style>

@@ -416,8 +416,8 @@
           >
             <strong>Sample + Sort</strong><br />
             <small
-              >{{ calculateTotalMatchesForType('samplesort') }} matches •
-              Very efficient</small
+              >{{ calculateTotalMatchesForType('samplesort') }} matches • Very
+              efficient</small
             ><br />
             <small style="color: #666; margin-top: 4px; display: block"
               >QuickSort sample for anchors, then binary insert remaining</small
@@ -440,17 +440,39 @@
         <h4 style="margin: 0 0 10px 0; color: #155724">
           📊 Efficiency Comparison for {{ csvData.length }} tasks:
         </h4>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 14px">
-          <div><strong>QuickSort:</strong> {{ calculateTotalMatchesForType('quicksort') }} comparisons</div>
-          <div><strong>Sample + Sort:</strong> {{ calculateTotalMatchesForType('samplesort') }} comparisons 
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            font-size: 14px;
+          "
+        >
+          <div>
+            <strong>QuickSort:</strong>
+            {{ calculateTotalMatchesForType('quicksort') }} comparisons
+          </div>
+          <div>
+            <strong>Sample + Sort:</strong>
+            {{ calculateTotalMatchesForType('samplesort') }} comparisons
             <span style="color: #28a745; font-weight: bold">
-              ({{ Math.round((1 - calculateTotalMatchesForType('samplesort') / calculateTotalMatchesForType('quicksort')) * 100) }}% fewer!)
+              ({{
+                Math.round(
+                  (1 -
+                    calculateTotalMatchesForType('samplesort') /
+                      calculateTotalMatchesForType('quicksort')) *
+                    100
+                )
+              }}% fewer!)
             </span>
           </div>
         </div>
         <div style="margin-top: 8px; font-size: 12px; color: #666">
-          💡 <strong>Sample + Sort</strong> creates deep knowledge of ~{{ Math.ceil(Math.sqrt(csvData.length)) }} "anchor" tasks, 
-          then efficiently places remaining tasks relative to these anchors.
+          💡 <strong>Sample + Sort</strong> creates deep knowledge of ~{{
+            Math.ceil(Math.sqrt(csvData.length))
+          }}
+          "anchor" tasks, then efficiently places remaining tasks relative to
+          these anchors.
         </div>
       </div>
 
@@ -893,9 +915,13 @@ const calculateTotalMatchesForType = (type: string) => {
   }
   if (type === 'samplesort') {
     // Sample + Sort: sample size is sqrt(n), then binary insertion for remaining
-    const sampleSize = Math.max(3, Math.min(50, Math.ceil(Math.sqrt(participantCount))));
+    const sampleSize = Math.max(
+      3,
+      Math.min(50, Math.ceil(Math.sqrt(participantCount)))
+    );
     const sampleComparisons = Math.ceil(sampleSize * Math.log2(sampleSize));
-    const insertionComparisons = (participantCount - sampleSize) * Math.ceil(Math.log2(sampleSize));
+    const insertionComparisons =
+      (participantCount - sampleSize) * Math.ceil(Math.log2(sampleSize));
     return sampleComparisons + insertionComparisons;
   }
   return Math.max(0, participantCount - 1); // Single elimination

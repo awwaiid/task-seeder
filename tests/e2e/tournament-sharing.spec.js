@@ -18,7 +18,9 @@ test.describe('Tournament URL Sharing', () => {
         'task,priority\nImplement login,high\nAdd dark mode,medium\nFix bug,low\nWrite tests,high\nAdd auth,critical';
 
       await setupPage.evaluate(csvData => {
-        const file = new File([csvData], 'test-tasks.csv', { type: 'text/csv' });
+        const file = new File([csvData], 'test-tasks.csv', {
+          type: 'text/csv',
+        });
         const dataTransfer = new DataTransfer();
         dataTransfer.items.add(file);
 
@@ -61,16 +63,21 @@ test.describe('Tournament URL Sharing', () => {
       let tournamentUrl = setupPage.url();
       let attempts = 0;
       const maxAttempts = 10;
-      
-      while (!tournamentUrl.includes('/tournament/') && attempts < maxAttempts) {
+
+      while (
+        !tournamentUrl.includes('/tournament/') &&
+        attempts < maxAttempts
+      ) {
         await setupPage.waitForTimeout(2000);
         tournamentUrl = setupPage.url();
         attempts++;
       }
-      
+
       // If database save isn't working, skip this test gracefully
       if (!tournamentUrl.includes('/tournament/')) {
-        console.log('Database not available for tournament sharing test, skipping...');
+        console.log(
+          'Database not available for tournament sharing test, skipping...'
+        );
         await setupContext.close();
         return;
       }
@@ -95,7 +102,7 @@ test.describe('Tournament URL Sharing', () => {
         await expect(
           sharePage.locator('[data-testid="tournament-progress"]')
         ).toBeVisible({ timeout: 5000 });
-        
+
         await expect(
           sharePage.locator('[data-testid="task-matchup"]')
         ).toBeVisible();
@@ -114,12 +121,12 @@ test.describe('Tournament URL Sharing', () => {
 
         // Verify the tournament progresses (either shows next match or completion)
         await sharePage.waitForTimeout(1000);
-        
+
         // Check if we have another match or if tournament completed
         const hasNextMatch = await sharePage
           .locator('[data-testid="task-matchup"]')
           .isVisible({ timeout: 2000 });
-        
+
         const isCompleted = await sharePage
           .locator('text=Your Task Rankings')
           .isVisible({ timeout: 2000 });
@@ -128,11 +135,9 @@ test.describe('Tournament URL Sharing', () => {
         expect(hasNextMatch || isCompleted).toBe(true);
 
         console.log('Tournament sharing test completed successfully');
-
       } finally {
         await shareContext.close();
       }
-
     } finally {
       // Cleanup: Close setup context if still open
       if (!setupContext.closed) {
@@ -144,21 +149,23 @@ test.describe('Tournament URL Sharing', () => {
   test('should handle invalid tournament UUID gracefully', async ({ page }) => {
     // Test with invalid UUID format
     await page.goto('/tournament/invalid-uuid-format');
-    
+
     // Should redirect to home or show error
-    await expect(
-      page.locator('h1')
-    ).toContainText('TaskSeeder', { timeout: 5000 });
+    await expect(page.locator('h1')).toContainText('TaskSeeder', {
+      timeout: 5000,
+    });
   });
 
-  test('should handle non-existent tournament UUID gracefully', async ({ page }) => {
+  test('should handle non-existent tournament UUID gracefully', async ({
+    page,
+  }) => {
     // Test with valid UUID format but non-existent tournament
     const fakeUuid = '12345678-1234-1234-1234-123456789012';
     await page.goto(`/tournament/${fakeUuid}`);
-    
+
     // Should redirect to home or show appropriate error
-    await expect(
-      page.locator('h1')
-    ).toContainText('TaskSeeder', { timeout: 5000 });
+    await expect(page.locator('h1')).toContainText('TaskSeeder', {
+      timeout: 5000,
+    });
   });
 });

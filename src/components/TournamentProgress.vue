@@ -35,12 +35,26 @@
         border-left: 4px solid #28a745;
       "
     >
-      <div style="display: flex; justify-content: space-between; align-items: center">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
         <span style="font-weight: bold; color: #28a745">
-          {{ currentBracketType === 'samplesort-sample' ? 'Phase 1: Ranking Sample' : 'Phase 2: Inserting Tasks' }}
+          {{
+            currentBracketType === 'samplesort-sample'
+              ? 'Phase 1: Ranking Sample'
+              : 'Phase 2: Inserting Tasks'
+          }}
         </span>
         <span style="font-size: 14px; color: #666">
-          {{ currentBracketType === 'samplesort-sample' ? 'Building anchor points' : 'Finding positions relative to anchors' }}
+          {{
+            currentBracketType === 'samplesort-sample'
+              ? 'Building anchor points'
+              : 'Finding positions relative to anchors'
+          }}
         </span>
       </div>
     </div>

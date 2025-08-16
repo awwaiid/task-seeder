@@ -66,7 +66,7 @@ export class URLBracketSharing {
       if (!bracketData) {
         throw new Error('Failed to create shareable URL');
       }
-      
+
       // Create a simplified version of the bracket data for URL encoding
       const urlData: URLData = {
         n: bracketData.name,
@@ -96,7 +96,7 @@ export class URLBracketSharing {
         .replace(/=/g, '');
 
       return encoded;
-    } catch (error) {
+    } catch {
       throw new Error('Failed to create shareable URL');
     }
   }
@@ -130,7 +130,7 @@ export class URLBracketSharing {
       };
 
       return bracketData;
-    } catch (error) {
+    } catch {
       throw new Error('Invalid or corrupted bracket URL');
     }
   }
@@ -225,7 +225,7 @@ export class URLBracketSharing {
       if (bracketParam) {
         return this.decodeBracketFromURL(bracketParam);
       }
-    } catch (error) {
+    } catch {
       return null;
     }
 
@@ -245,7 +245,7 @@ export class URLBracketSharing {
       } else {
         window.history.pushState({}, '', newURL);
       }
-    } catch (error) {
+    } catch {
       // Silently fail if URL update fails
     }
   }
