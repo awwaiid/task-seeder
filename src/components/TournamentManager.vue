@@ -42,6 +42,7 @@
         :task2="currentPair[1] || null"
         :task-name-column="taskNameColumn"
         :selected-fields="selectedSecondaryFields"
+        :preserve-order="shouldPreserveOrder"
         @choose-winner="chooseWinner"
         @skip-task="handleSkipTask"
       />
@@ -341,7 +342,21 @@ const totalRounds = computed(() => tournament.value?.getTotalRounds() || 1);
 const currentRoundMatches = computed(
   () => tournament.value?.getMatchesInRound(currentRound.value) || 1
 );
-const currentBracketType = computed(() => 'main'); // Simplified for now
+const currentBracketType = computed(() => currentMatch.value?.bracket || 'main');
+
+// Determine if we should preserve task order (for pivot-based comparisons)
+const shouldPreserveOrder = computed(() => {
+  // QuickSort: Always preserve order (task1 = pivot, task2 = candidate)
+  if (tournamentType.value === 'quicksort') return true;
+  
+  // Sample + Sort: Preserve order during insertion phase (task1 = new task, task2 = anchor)
+  if (tournamentType.value === 'samplesort' && currentBracketType.value === 'samplesort-insertion') {
+    return true;
+  }
+  
+  // All other cases: randomize for fairness
+  return false;
+});
 
 // User-visible matches (excludes byes and automatic matches) - used by tests
 const _totalUserVisibleMatches = computed(() => {

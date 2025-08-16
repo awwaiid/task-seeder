@@ -8,6 +8,9 @@
         font-size: 12px;
       "
     >
+      <div v-if="props.preserveOrder" style="color: #28a745; font-weight: bold; margin-bottom: 5px;">
+        📍 Comparing new task vs anchor point
+      </div>
       Click or use ← → arrow keys to select the winner
     </div>
     <div
@@ -18,6 +21,7 @@
     >
       <button
         class="task-button"
+        :class="{ 'new-task': props.preserveOrder }"
         :disabled="!leftTask"
         @click="chooseWinner(0)"
       >
@@ -66,6 +70,7 @@
       <div class="vs">VS</div>
       <button
         class="task-button"
+        :class="{ 'anchor-task': props.preserveOrder }"
         :disabled="!rightTask"
         @click="chooseWinner(1)"
       >
@@ -127,6 +132,7 @@ const props = defineProps<{
   task2: Task | null;
   taskNameColumn: string;
   selectedFields: string[];
+  preserveOrder?: boolean; // Don't randomize left/right - for pivot-based comparisons
 }>();
 
 const emit = defineEmits<{
@@ -134,8 +140,8 @@ const emit = defineEmits<{
   'skip-task': [task: Task];
 }>();
 
-// Randomly decide which task goes on which side
-const shouldFlip = ref(Math.random() < 0.5);
+// Randomly decide which task goes on which side (unless preserveOrder is true)
+const shouldFlip = ref(props.preserveOrder ? false : Math.random() < 0.5);
 const matchupContainer = ref<HTMLElement | null>(null);
 
 const leftTask = computed(() => (shouldFlip.value ? props.task2 : props.task1));
@@ -197,11 +203,11 @@ function handleKeydown(event: KeyboardEvent): void {
   }
 }
 
-// Re-randomize when tasks change
+// Re-randomize when tasks change (unless preserveOrder is true)
 watch(
   () => [props.task1, props.task2],
   () => {
-    shouldFlip.value = Math.random() < 0.5;
+    shouldFlip.value = props.preserveOrder ? false : Math.random() < 0.5;
     // Focus the container so keyboard events work
     if (matchupContainer.value) {
       matchupContainer.value.focus();
@@ -257,5 +263,25 @@ onMounted(() => {
   margin-top: 8px;
   text-align: center;
   font-weight: bold;
+}
+
+.new-task {
+  border: 2px solid #17a2b8;
+  box-shadow: 0 0 8px rgba(23, 162, 184, 0.3);
+}
+
+.anchor-task {
+  border: 2px solid #28a745;
+  box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+}
+
+.new-task .task-title::before {
+  content: "🆕 ";
+  color: #17a2b8;
+}
+
+.anchor-task .task-title::before {
+  content: "⚓ ";
+  color: #28a745;
 }
 </style>
