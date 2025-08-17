@@ -63,6 +63,16 @@
             </div>
           </div>
         </div>
+
+        <!-- Skip Button -->
+        <button
+          class="skip-button"
+          :disabled="!currentTask"
+          title="Place this task at the lowest priority"
+          @click="skipTask"
+        >
+          Skip (Lowest Priority)
+        </button>
       </div>
 
       <!-- Position Selection Area (right side on wide screens) -->
@@ -164,6 +174,12 @@ function choosePosition(choice: 'above' | 'between' | 'below'): void {
   emit('choose-position', choice);
 }
 
+function skipTask(): void {
+  if (props.currentTask) {
+    emit('skip-task', props.currentTask);
+  }
+}
+
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key === 'ArrowUp' || event.key === '1') {
     event.preventDefault();
@@ -183,6 +199,11 @@ function handleKeydown(event: KeyboardEvent): void {
     event.preventDefault();
     if (props.currentTask) {
       choosePosition('between');
+    }
+  } else if (event.key === 's' || event.key === 'S') {
+    event.preventDefault();
+    if (props.currentTask) {
+      skipTask();
     }
   }
 }
@@ -407,6 +428,34 @@ onMounted(() => {
   justify-content: center;
   font-size: 12px;
   font-weight: bold;
+}
+
+.skip-button {
+  background: #95a5a6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 15px;
+  width: 100%;
+  max-width: 200px;
+}
+
+.skip-button:hover:not(:disabled) {
+  background: #7f8c8d;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(149, 165, 166, 0.3);
+}
+
+.skip-button:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Responsive design - stack vertically on smaller screens */

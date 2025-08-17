@@ -1787,11 +1787,12 @@ export class InsertionTournament {
   private searchRangeEnd: number = 0; // End of current search range in sortedTasks
   private completedComparisons: number = 0;
   private totalComparisons: number = 0;
+  private currentTaskComparisons: number = 0; // Comparisons made for the current task being ranked
   private comparisonHistory: Array<{
     task: ParticipantUUID;
     anchor1?: ParticipantUUID;
     anchor2?: ParticipantUUID;
-    choice: 'above' | 'between' | 'below' | 'first' | 'positioned';
+    choice: 'above' | 'between' | 'below' | 'first' | 'positioned' | 'skipped';
     insertPosition: number;
     rangeStart: number;
     rangeEnd: number;
@@ -1860,6 +1861,7 @@ export class InsertionTournament {
       const nextTask = this.unrankedTasks[0];
       if (nextTask) {
         this.currentTask = nextTask;
+        this.currentTaskComparisons = 0; // Reset comparisons for new task
 
         if (this.sortedTasks.length === 0) {
           // First task goes directly into sorted list
@@ -2115,6 +2117,7 @@ export class InsertionTournament {
     } = match.originalMatch;
 
     this.completedComparisons++;
+    this.currentTaskComparisons++;
 
     console.log('REPORTRESULT DEBUG:', {
       task: this.currentTask,
@@ -2278,6 +2281,53 @@ export class InsertionTournament {
     return this.sortedTasks.length;
   }
 
+  getCurrentTaskComparisons(): number {
+    return this.currentTaskComparisons;
+  }
+
+  skipCurrentTask(): void {
+    if (!this.currentTask) {
+      console.warn('No current task to skip');
+      return;
+    }
+
+    // Remove the current task from unranked tasks
+    const taskIndex = this.unrankedTasks.indexOf(this.currentTask);
+    if (taskIndex === -1) {
+      console.warn('Current task not found in unranked tasks');
+      return;
+    }
+
+    const skippedTask = this.currentTask;
+    this.unrankedTasks.splice(taskIndex, 1);
+
+    // Place it at the end of the sorted list (lowest priority)
+    this.sortedTasks.push(skippedTask);
+
+    // Add to comparison history
+    this.comparisonHistory.push({
+      task: skippedTask,
+      choice: 'skipped',
+      insertPosition: this.sortedTasks.length - 1,
+      rangeStart: 0,
+      rangeEnd: 0,
+    });
+
+    console.log('TASK SKIPPED:', {
+      skippedTask,
+      newPosition: this.sortedTasks.length - 1,
+      sortedTasksLength: this.sortedTasks.length,
+      unrankedTasksLength: this.unrankedTasks.length,
+      sortedTasks: this.sortedTasks,
+      unrankedTasks: this.unrankedTasks,
+    });
+
+    // Clear current task state
+    this.currentTask = undefined;
+    this.searchRangeStart = 0;
+    this.searchRangeEnd = 0;
+  }
+
   getWinner(): ParticipantUUID | null {
     if (!this.isComplete()) {
       return null;
@@ -2351,6 +2401,7 @@ export class InsertionTournament {
         searchRangeEnd: this.searchRangeEnd,
         completedComparisons: this.completedComparisons,
         totalComparisons: this.totalComparisons,
+        currentTaskComparisons: this.currentTaskComparisons,
         comparisonHistory: this.comparisonHistory,
       },
     };
@@ -2415,6 +2466,8 @@ export class InsertionTournament {
           state.insertionState.completedComparisons || 0;
         tournament.totalComparisons =
           state.insertionState.totalComparisons || 0;
+        tournament.currentTaskComparisons =
+          state.insertionState.currentTaskComparisons || 0;
         tournament.comparisonHistory =
           state.insertionState.comparisonHistory || [];
       }
@@ -2431,6 +2484,8 @@ export class InsertionTournament {
       tournament.completedComparisons =
         state.insertionState.completedComparisons || 0;
       tournament.totalComparisons = state.insertionState.totalComparisons || 0;
+      tournament.currentTaskComparisons =
+        state.insertionState.currentTaskComparisons || 0;
       tournament.comparisonHistory =
         state.insertionState.comparisonHistory || [];
     }

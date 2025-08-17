@@ -141,6 +141,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  currentTaskComparisons: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const totalRounds = computed(() => {
@@ -255,7 +259,7 @@ const bracketDescription = computed(() => {
 // Insertion tournament specific calculations
 const insertionCurrentStep = computed(() => {
   if (props.tournamentType !== 'insertion') return 0;
-  return props.sortedTasksCount;
+  return props.currentTaskComparisons + 1;
 });
 
 const insertionEstimatedSteps = computed(() => {

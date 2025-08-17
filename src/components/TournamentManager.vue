@@ -35,6 +35,7 @@
         :total-rounds="totalRounds"
         :current-round-matches="currentRoundMatches"
         :sorted-tasks-count="getInsertionSortedTasksCount()"
+        :current-task-comparisons="getInsertionCurrentTaskComparisons()"
       />
 
       <!-- Insertion Tournament Interface -->
@@ -644,6 +645,13 @@ function getInsertionSortedTasksCount() {
   return insertionTournament.getSortedTasksCount?.() || 0;
 }
 
+function getInsertionCurrentTaskComparisons() {
+  if (tournament.value?.type !== 'insertion') return 0;
+  const insertionTournament =
+    tournament.value as unknown as InsertionTournament;
+  return insertionTournament.getCurrentTaskComparisons?.() || 0;
+}
+
 function getInsertionRangeStart() {
   return currentMatch.value?.originalMatch?.rangeStart || 0;
 }
@@ -707,18 +715,32 @@ function handleSkipTask(task: any) {
   // Mark the task as skipped
   task.__skipped = true;
 
-  // If this task is currently in a match, automatically make it lose
-  if (currentMatch.value && tournament.value) {
-    const taskUuid = getUuidByTask(task);
-    if (!taskUuid) return;
+  if (tournamentType.value === 'insertion') {
+    // For insertion tournaments, place the task at the lowest priority
+    if (tournament.value && 'skipCurrentTask' in tournament.value) {
+      const insertionTournament = tournament.value as any;
+      insertionTournament.skipCurrentTask();
 
-    // Check if this task is in the current match
-    if (currentMatch.value.player1 === taskUuid) {
-      // Task 1 is skipped, so task 2 wins (winner index 1)
-      chooseWinner(1);
-    } else if (currentMatch.value.player2 === taskUuid) {
-      // Task 2 is skipped, so task 1 wins (winner index 0)
-      chooseWinner(0);
+      // Get the next match to continue the tournament
+      currentMatch.value = tournament.value.getNextMatch();
+      if (!currentMatch.value && tournament.value.isComplete()) {
+        currentPhase.value = 'results';
+      }
+    }
+  } else {
+    // Traditional tournament behavior - make the skipped task lose
+    if (currentMatch.value && tournament.value) {
+      const taskUuid = getUuidByTask(task);
+      if (!taskUuid) return;
+
+      // Check if this task is in the current match
+      if (currentMatch.value.player1 === taskUuid) {
+        // Task 1 is skipped, so task 2 wins (winner index 1)
+        chooseWinner(1);
+      } else if (currentMatch.value.player2 === taskUuid) {
+        // Task 2 is skipped, so task 1 wins (winner index 0)
+        chooseWinner(0);
+      }
     }
   }
 }
