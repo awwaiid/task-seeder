@@ -45,7 +45,9 @@
                     ? 'QuickSort ranking'
                     : bracket.tournamentType === 'samplesort'
                       ? 'Sample + Sort'
-                      : 'Single elimination'
+                      : bracket.tournamentType === 'insertion'
+                        ? 'Interactive Insertion'
+                        : 'Single elimination'
               }}
               •
               {{ formatDate(bracket.lastModified) }}
@@ -423,6 +425,21 @@
               >QuickSort sample for anchors, then binary insert remaining</small
             >
           </div>
+          <div
+            class="option"
+            :class="{ selected: tournamentType === 'insertion' }"
+            style="cursor: pointer"
+            @click="tournamentType = 'insertion'"
+          >
+            <strong>Interactive Insertion</strong><br />
+            <small
+              >{{ calculateTotalMatchesForType('insertion') }} choices • Most
+              intuitive</small
+            ><br />
+            <small style="color: #666; margin-top: 4px; display: block"
+              >Choose Above, Between, or Below anchor tasks</small
+            >
+          </div>
         </div>
       </div>
 
@@ -464,6 +481,13 @@
                     100
                 )
               }}% fewer!)
+            </span>
+          </div>
+          <div>
+            <strong>Interactive Insertion:</strong>
+            {{ calculateTotalMatchesForType('insertion') }} choices
+            <span style="color: #3498db; font-weight: bold">
+              (Most intuitive!)
             </span>
           </div>
         </div>
@@ -923,6 +947,12 @@ const calculateTotalMatchesForType = (type: string) => {
     const insertionComparisons =
       (participantCount - sampleSize) * Math.ceil(Math.log2(sampleSize));
     return sampleComparisons + insertionComparisons;
+  }
+  if (type === 'insertion') {
+    // Interactive Insertion: binary search for each task's position
+    return Math.ceil(
+      participantCount * Math.log2(Math.max(2, participantCount))
+    );
   }
   return Math.max(0, participantCount - 1); // Single elimination
 };

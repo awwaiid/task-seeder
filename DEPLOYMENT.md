@@ -53,11 +53,13 @@ npm run server:dev
 ### Docker Compose (Recommended)
 
 1. **Update docker-compose.yml**:
+
    - Change the domain in traefik labels
    - Configure your reverse proxy settings
    - Adjust port mapping if needed
 
 2. **Deploy**:
+
 ```bash
 docker-compose up -d
 ```
@@ -68,10 +70,10 @@ docker-compose up -d
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable   | Default       | Description     |
+| ---------- | ------------- | --------------- |
 | `NODE_ENV` | `development` | Production mode |
-| `PORT` | `3000` | Server port |
+| `PORT`     | `3000`        | Server port     |
 
 ### Reverse Proxy Configuration
 
@@ -81,7 +83,7 @@ docker-compose up -d
 server {
     listen 80;
     server_name taskseeder.yourdomain.com;
-    
+
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -101,10 +103,10 @@ server {
 ```yaml
 # Already configured in docker-compose.yml
 labels:
-  - "traefik.enable=true"
-  - "traefik.http.routers.taskseeder.rule=Host(`taskseeder.yourdomain.com`)"
-  - "traefik.http.routers.taskseeder.tls=true"
-  - "traefik.http.routers.taskseeder.tls.certresolver=letsencrypt"
+  - 'traefik.enable=true'
+  - 'traefik.http.routers.taskseeder.rule=Host(`taskseeder.yourdomain.com`)'
+  - 'traefik.http.routers.taskseeder.tls=true'
+  - 'traefik.http.routers.taskseeder.tls.certresolver=letsencrypt'
 ```
 
 ## API Endpoints
@@ -204,12 +206,14 @@ curl http://localhost:3000/api/brackets/stats
 ### Common Issues
 
 1. **Database Permission Errors**:
+
    ```bash
    # Ensure proper ownership
    docker exec taskseeder chown -R taskseeder:nodejs /app/data
    ```
 
 2. **Port Already in Use**:
+
    ```bash
    # Change port in docker-compose.yml
    ports:

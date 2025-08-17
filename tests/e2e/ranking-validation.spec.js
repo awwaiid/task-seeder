@@ -4,36 +4,41 @@ import path from 'path';
 // Helper function to make deterministic choices (always choose alphabetically first)
 async function makeDeterministicChoice(page) {
   // Wait for the matchup to be visible first
-  await page.locator('[data-testid="task-matchup"]').waitFor({ state: 'visible', timeout: 10000 });
-  
+  await page
+    .locator('[data-testid="task-matchup"]')
+    .waitFor({ state: 'visible', timeout: 10000 });
+
   // Get all buttons and wait for at least one
   const allButtons = page.locator('[data-testid="task-matchup"] button');
   await allButtons.first().waitFor({ state: 'visible', timeout: 10000 });
-  
+
   // Check if there are at least 2 buttons
   const buttonCount = await allButtons.count();
-  
+
   if (buttonCount < 2) {
     // If only one button, click it
     await allButtons.first().click();
-    const buttonText = await allButtons.first().locator('.task-title').textContent();
+    const buttonText = await allButtons
+      .first()
+      .locator('.task-title')
+      .textContent();
     console.log(`Only one choice: "${buttonText}"`);
     return buttonText;
   }
-  
+
   // Find the buttons that contain task titles (not Skip buttons)
   const button1 = allButtons.nth(0);
   const button2 = allButtons.nth(1);
-  
+
   await button1.waitFor({ state: 'visible' });
   await button2.waitFor({ state: 'visible' });
-  
+
   // Get task titles with error handling
   let button1Text, button2Text;
   try {
-    const hasTitle1 = await button1.locator('.task-title').count() > 0;
-    const hasTitle2 = await button2.locator('.task-title').count() > 0;
-    
+    const hasTitle1 = (await button1.locator('.task-title').count()) > 0;
+    const hasTitle2 = (await button2.locator('.task-title').count()) > 0;
+
     if (hasTitle1 && hasTitle2) {
       button1Text = await button1.locator('.task-title').textContent();
       button2Text = await button2.locator('.task-title').textContent();
@@ -91,28 +96,30 @@ async function completeTournamentWithTracking(page) {
       .locator('h2')
       .filter({ hasText: 'Match' })
       .textContent();
-    
+
     // Wait for the matchup to be ready
-    await page.locator('[data-testid="task-matchup"]').waitFor({ state: 'visible', timeout: 10000 });
-    
+    await page
+      .locator('[data-testid="task-matchup"]')
+      .waitFor({ state: 'visible', timeout: 10000 });
+
     // Get task buttons - wait for at least one to be available
     const allButtons = page.locator('[data-testid="task-matchup"] button');
     await allButtons.first().waitFor({ state: 'visible', timeout: 10000 });
-    
+
     // Check how many task buttons are actually available
     const buttonCount = await allButtons.count();
-    
+
     let option1, option2;
     try {
       if (buttonCount >= 2) {
         // Try to get task titles, but handle cases where buttons might not have them
         const button1Title = allButtons.nth(0).locator('.task-title');
         const button2Title = allButtons.nth(1).locator('.task-title');
-        
+
         // Check if both have task titles
-        const hasTitle1 = await button1Title.count() > 0;
-        const hasTitle2 = await button2Title.count() > 0;
-        
+        const hasTitle1 = (await button1Title.count()) > 0;
+        const hasTitle2 = (await button2Title.count()) > 0;
+
         if (hasTitle1 && hasTitle2) {
           option1 = await button1Title.textContent();
           option2 = await button2Title.textContent();
@@ -125,10 +132,7 @@ async function completeTournamentWithTracking(page) {
         }
       } else {
         // If only one button
-        option1 = await allButtons
-          .nth(0)
-          .locator('.task-title')
-          .textContent();
+        option1 = await allButtons.nth(0).locator('.task-title').textContent();
         option2 = 'N/A';
       }
     } catch (error) {
@@ -387,7 +391,7 @@ test.describe('Tournament Ranking Validation', () => {
     expect(rankings[2].task).toMatch(/Task [A-E]/);
     expect(rankings[3].task).toMatch(/Task [A-E]/);
     expect(rankings[4].task).toMatch(/Task [A-E]/);
-    
+
     // Verify all tasks are included and unique
     const taskNames = rankings.map(r => r.task);
     expect(new Set(taskNames).size).toBe(5); // All unique tasks
@@ -456,43 +460,54 @@ test.describe('Tournament Ranking Validation', () => {
     await page
       .locator('input[placeholder*="ranking session"]')
       .fill('Two Task Test');
-    
+
     // Take screenshot before starting tournament
-    await page.screenshot({ path: 'test-results/before-start.png', fullPage: true });
-    
+    await page.screenshot({
+      path: 'test-results/before-start.png',
+      fullPage: true,
+    });
+
     await page.locator('button:has-text("Start Task Ranking")').click();
 
     // Take screenshot after clicking start
-    await page.screenshot({ path: 'test-results/after-start.png', fullPage: true });
-    
+    await page.screenshot({
+      path: 'test-results/after-start.png',
+      fullPage: true,
+    });
+
     // Wait for tournament to start - be more patient
     await page.waitForTimeout(2000);
-    
+
     // Should start tournament immediately
-    await expect(page.locator('[data-testid="task-matchup"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="task-matchup"]')).toBeVisible({
+      timeout: 15000,
+    });
 
     // Take screenshot when matchup is visible
-    await page.screenshot({ path: 'test-results/matchup-visible.png', fullPage: true });
+    await page.screenshot({
+      path: 'test-results/matchup-visible.png',
+      fullPage: true,
+    });
 
     // Get the task buttons and select alphabetically
     const taskButtons = page.locator('[data-testid="task-matchup"] button');
-    
+
     // Wait for both task buttons to be visible
     await taskButtons.nth(0).waitFor({ state: 'visible', timeout: 10000 });
     await taskButtons.nth(1).waitFor({ state: 'visible', timeout: 10000 });
-    
+
     // Get the text content of both buttons
     const button1Text = await taskButtons.nth(0).textContent();
     const button2Text = await taskButtons.nth(1).textContent();
-    
+
     console.log(`Button 1: ${button1Text}, Button 2: ${button2Text}`);
-    
+
     // Extract task names (they should contain "Task A" and "Task B")
     const task1 = button1Text.includes('Task A') ? 'Task A' : 'Task B';
     const task2 = button2Text.includes('Task A') ? 'Task A' : 'Task B';
-    
+
     console.log(`Task 1: ${task1}, Task 2: ${task2}`);
-    
+
     // Click the button with Task A (alphabetically first)
     if (task1 === 'Task A') {
       await taskButtons.nth(0).click();
@@ -501,7 +516,9 @@ test.describe('Tournament Ranking Validation', () => {
     }
 
     // Should immediately show results (only 1 match needed)
-    await expect(page.locator('text=Your Task Rankings')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('text=Your Task Rankings')).toBeVisible({
+      timeout: 15000,
+    });
 
     const rankings = await extractRankings(page);
     expect(rankings).toHaveLength(2);

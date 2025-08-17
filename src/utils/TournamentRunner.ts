@@ -17,11 +17,17 @@ export function createTournament(
   type: TournamentType,
   entrants: ParticipantUUID[],
   options: TournamentOptions = {}
-): Tournament | QuickSortTournament | SampleSortTournament {
+):
+  | Tournament
+  | QuickSortTournament
+  | SampleSortTournament
+  | InsertionTournament {
   if (type === 'quicksort') {
     return new QuickSortTournament(entrants, options);
   } else if (type === 'samplesort') {
     return new SampleSortTournament(entrants, options);
+  } else if (type === 'insertion') {
+    return new InsertionTournament(entrants, options);
   } else {
     return new Tournament(type, entrants, options);
   }
@@ -1730,6 +1736,494 @@ export class SampleSortTournament {
         tournament.sampleParticipants,
         options
       );
+    }
+
+    return tournament;
+  }
+
+  private _applySeedingMethod(
+    participants: ParticipantUUID[],
+    seedingMethod: SeedingMethod
+  ): ParticipantUUID[] {
+    switch (seedingMethod) {
+      case 'random': {
+        const shuffled = [...participants];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          const temp = shuffled[i];
+          const tempJ = shuffled[j];
+          if (temp && tempJ) {
+            shuffled[i] = tempJ;
+            shuffled[j] = temp;
+          }
+        }
+        return shuffled;
+      }
+      case 'order':
+      default:
+        return [...participants];
+    }
+  }
+}
+
+/**
+ * InsertionTournament - Interactive insertion sort ranking algorithm
+ *
+ * Users rank tasks by choosing where each task should be positioned relative to
+ * already-sorted tasks using a trisection approach (Above, Between, Below).
+ */
+export class InsertionTournament {
+  type: string = 'insertion';
+  originalEntrants: ParticipantUUID[];
+  taskNameColumn: string | undefined;
+  _finalResults?: any;
+  _isCompleteFromStorage?: boolean;
+
+  // Algorithm state
+  private unrankedTasks: ParticipantUUID[];
+  private sortedTasks: ParticipantUUID[] = [];
+  private currentTask: ParticipantUUID | undefined;
+  private searchRangeStart: number = 0; // Start of current search range in sortedTasks
+  private searchRangeEnd: number = 0; // End of current search range in sortedTasks
+  private completedComparisons: number = 0;
+  private totalComparisons: number = 0;
+  private comparisonHistory: Array<{
+    task: ParticipantUUID;
+    anchor1?: ParticipantUUID;
+    anchor2?: ParticipantUUID;
+    choice: 'above' | 'between' | 'below' | 'first' | 'positioned';
+    insertPosition: number;
+    rangeStart: number;
+    rangeEnd: number;
+  }> = [];
+
+  // Compatibility properties for tournament interface
+  get remainingParticipants(): ParticipantUUID[] {
+    return [...this.unrankedTasks];
+  }
+
+  get matches(): any[] {
+    // Return completed comparisons as matches for compatibility
+    return this.comparisonHistory.map((comparison, index) => ({
+      player1: comparison.task,
+      player2: comparison.anchor1 || comparison.anchor2,
+      winner: comparison.task,
+      active: false,
+      round: index + 1,
+      matchInRound: 1,
+    }));
+  }
+
+  get pendingMatches(): any[] {
+    // No pending matches concept in insertion sort
+    return [];
+  }
+
+  findParticipantByPlayerId(playerId: ParticipantUUID): ParticipantUUID | null {
+    return playerId; // In our case, playerId is the UUID itself
+  }
+
+  constructor(entrants: ParticipantUUID[], options: TournamentOptions = {}) {
+    if (!entrants || entrants.length < 1) {
+      throw new Error('Tournament requires at least 1 entrant');
+    }
+
+    this.taskNameColumn = options.taskNameColumn;
+    this.originalEntrants = [...entrants];
+
+    // Apply seeding
+    const seedingMethod = options.seedingMethod || 'order';
+    this.unrankedTasks = this._applySeedingMethod(entrants, seedingMethod);
+
+    // Estimate total comparisons (roughly n log n)
+    this.totalComparisons = Math.ceil(
+      this.unrankedTasks.length *
+        Math.log2(Math.max(2, this.unrankedTasks.length))
+    );
+
+    // Handle single task
+    if (this.unrankedTasks.length === 1) {
+      this.sortedTasks = [...this.unrankedTasks];
+      this.unrankedTasks = [];
+      this.totalComparisons = 0;
+    }
+  }
+
+  getNextMatch(): ActiveMatch | null {
+    if (this.isComplete()) {
+      return null;
+    }
+
+    // If we don't have a current task, start with the next unranked task
+    if (!this.currentTask && this.unrankedTasks.length > 0) {
+      const nextTask = this.unrankedTasks.shift();
+      if (nextTask) {
+        this.currentTask = nextTask;
+
+        if (this.sortedTasks.length === 0) {
+          // First task goes directly into sorted list
+          this.sortedTasks.push(this.currentTask);
+          this.comparisonHistory.push({
+            task: this.currentTask,
+            choice: 'first',
+            insertPosition: 0,
+            rangeStart: 0,
+            rangeEnd: 0,
+          });
+          this.currentTask = undefined;
+          return this.getNextMatch(); // Get next task
+        } else {
+          // Initialize search range to cover entire sorted list
+          this.searchRangeStart = 0;
+          this.searchRangeEnd = this.sortedTasks.length;
+        }
+      }
+    }
+
+    if (!this.currentTask) {
+      return null;
+    }
+
+    // Check if we've narrowed down to exact position
+    if (this.searchRangeEnd - this.searchRangeStart <= 1) {
+      // Insert at the determined position
+      const insertPosition = this.searchRangeEnd;
+      this.sortedTasks.splice(insertPosition, 0, this.currentTask);
+
+      // Record the final placement
+      this.comparisonHistory.push({
+        task: this.currentTask,
+        choice: 'positioned',
+        insertPosition,
+        rangeStart: this.searchRangeStart,
+        rangeEnd: this.searchRangeEnd,
+      });
+
+      this.currentTask = undefined;
+      return this.getNextMatch(); // Get next task
+    }
+
+    // Determine anchor tasks based on sorted list size and current range
+    const rangeSize = this.searchRangeEnd - this.searchRangeStart;
+
+    if (this.sortedTasks.length === 1) {
+      // Second task: simple Above/Below choice
+      const anchor1 = this.sortedTasks[0];
+      return {
+        player1: this.currentTask || null,
+        player2: anchor1 || null,
+        round: this.sortedTasks.length + 1,
+        matchInRound: this.completedComparisons + 1,
+        bracket: 'insertion',
+        originalMatch: {
+          task: this.currentTask || null,
+          anchor1: anchor1 || null,
+          anchor2: null,
+          anchor1Index: 0,
+          anchor2Index: null,
+          rangeStart: this.searchRangeStart,
+          rangeEnd: this.searchRangeEnd,
+          comparisonType: 'two-way', // Above/Below only
+        },
+      };
+    } else if (rangeSize <= 2) {
+      // Range narrowed to 1-2 positions: Above/Below single anchor
+      const anchorIndex = this.searchRangeStart;
+      const anchor1 =
+        this.sortedTasks[anchorIndex] || this.sortedTasks[anchorIndex - 1];
+
+      return {
+        player1: this.currentTask || null,
+        player2: anchor1 || null,
+        round: this.sortedTasks.length + 1,
+        matchInRound: this.completedComparisons + 1,
+        bracket: 'insertion',
+        originalMatch: {
+          task: this.currentTask || null,
+          anchor1: anchor1 || null,
+          anchor2: null,
+          anchor1Index: anchorIndex,
+          anchor2Index: null,
+          rangeStart: this.searchRangeStart,
+          rangeEnd: this.searchRangeEnd,
+          comparisonType: 'two-way', // Above/Below only
+        },
+      };
+    } else {
+      // Range has 3+ positions: trisection with Above/Between/Below
+      const oneThird = Math.floor(this.searchRangeStart + rangeSize / 3);
+      const twoThirds = Math.floor(this.searchRangeStart + (2 * rangeSize) / 3);
+
+      const anchor1 = this.sortedTasks[oneThird];
+      const anchor2 = this.sortedTasks[twoThirds];
+
+      return {
+        player1: this.currentTask || null,
+        player2: anchor1 || null, // Still using player2 for compatibility
+        round: this.sortedTasks.length + 1,
+        matchInRound: this.completedComparisons + 1,
+        bracket: 'insertion',
+        originalMatch: {
+          task: this.currentTask || null,
+          anchor1: anchor1 || null,
+          anchor2: anchor2 || null,
+          anchor1Index: oneThird,
+          anchor2Index: twoThirds,
+          rangeStart: this.searchRangeStart,
+          rangeEnd: this.searchRangeEnd,
+          comparisonType: 'three-way', // Above/Between/Below
+        },
+      };
+    }
+  }
+
+  reportResult(
+    match: ActiveMatch,
+    choice: 'above' | 'between' | 'below'
+  ): void {
+    if (!this.currentTask || !match.originalMatch) {
+      throw new Error('No active insertion in progress');
+    }
+
+    const {
+      anchor1,
+      anchor2,
+      anchor1Index,
+      anchor2Index,
+      rangeStart,
+      rangeEnd,
+      comparisonType,
+    } = match.originalMatch;
+
+    this.completedComparisons++;
+
+    // Update search range based on choice and comparison type
+    if (comparisonType === 'two-way') {
+      // Simple Above/Below choice with single anchor
+      switch (choice) {
+        case 'above':
+          // Task goes above the anchor
+          this.searchRangeEnd = anchor1Index || 0;
+          break;
+        case 'below':
+          // Task goes below the anchor
+          this.searchRangeStart = (anchor1Index || 0) + 1;
+          break;
+        case 'between':
+          // Between not valid for two-way, treat as below
+          this.searchRangeStart = (anchor1Index || 0) + 1;
+          break;
+      }
+    } else {
+      // Three-way choice with two anchors (trisection)
+      switch (choice) {
+        case 'above':
+          // Task goes above both anchors (first third)
+          this.searchRangeEnd = anchor1Index || 0;
+          break;
+        case 'between':
+          // Task goes between the anchors (middle third)
+          this.searchRangeStart = (anchor1Index || 0) + 1;
+          this.searchRangeEnd = anchor2Index || 0;
+          break;
+        case 'below':
+          // Task goes below both anchors (last third)
+          this.searchRangeStart = (anchor2Index || 0) + 1;
+          break;
+      }
+    }
+
+    // Record this comparison
+    this.comparisonHistory.push({
+      task: this.currentTask,
+      anchor1,
+      anchor2,
+      choice,
+      insertPosition: -1, // Will be set when task is actually inserted
+      rangeStart: rangeStart || 0,
+      rangeEnd: rangeEnd || 0,
+    });
+  }
+
+  // Legacy reportResult method for compatibility (maps winner selection to insertion choice)
+  reportResultLegacy(match: ActiveMatch, _winnerUuid: ParticipantUUID): void {
+    // This shouldn't be called for insertion tournaments, but provide fallback
+    console.warn('InsertionTournament received legacy reportResult call');
+    if (match.originalMatch?.anchor1 && match.originalMatch?.anchor2) {
+      // Default to 'between' choice
+      this.reportResult(match, 'between');
+    }
+  }
+
+  isComplete(): boolean {
+    if (this._isCompleteFromStorage && this._finalResults) {
+      return true;
+    }
+    return this.unrankedTasks.length === 0 && !this.currentTask;
+  }
+
+  getRankings(): ParticipantUUID[] {
+    if (this._isCompleteFromStorage && this._finalResults) {
+      return this._finalResults.rankings.map((r: any) => r.participantId);
+    }
+    return [...this.sortedTasks];
+  }
+
+  getWinner(): ParticipantUUID | null {
+    if (!this.isComplete()) {
+      return null;
+    }
+    const rankings = this.getRankings();
+    return rankings.length > 0 ? rankings[0] || null : null;
+  }
+
+  getCurrentMatchNumber(): number {
+    return this.completedComparisons + 1;
+  }
+
+  getTotalMatches(): number {
+    return this.totalComparisons;
+  }
+
+  getTotalRounds(): number {
+    return this.originalEntrants.length;
+  }
+
+  getMatchesInRound(round: number): number {
+    // Each "round" represents ranking one task
+    return round <= this.originalEntrants.length ? 1 : 0;
+  }
+
+  getMatchHistoryForParticipant(participantId: ParticipantUUID): any[] {
+    if (this._isCompleteFromStorage && this._finalResults) {
+      const participantResult = this._finalResults.rankings.find(
+        (r: any) => r.participantId === participantId
+      );
+      return participantResult?.matchHistory || [];
+    }
+
+    const matchHistory: any[] = [];
+
+    // Find comparisons involving this participant
+    this.comparisonHistory.forEach((comparison, index) => {
+      if (comparison.task === participantId) {
+        matchHistory.push({
+          round: index + 1,
+          opponent: null, // Insertion doesn't have traditional opponents
+          result: 'RANKED',
+          matchNumber: index + 1,
+          bracket: 'insertion',
+          details: {
+            choice: comparison.choice,
+            anchor1: comparison.anchor1,
+            anchor2: comparison.anchor2,
+            insertPosition: comparison.insertPosition,
+          },
+        });
+      }
+    });
+
+    return matchHistory;
+  }
+
+  exportState(): any {
+    const isComplete = this.isComplete();
+    const baseState = {
+      version: '3.0',
+      type: this.type,
+      originalEntrants: this.originalEntrants,
+      taskNameColumn: this.taskNameColumn,
+      isComplete,
+      insertionState: {
+        unrankedTasks: this.unrankedTasks,
+        sortedTasks: this.sortedTasks,
+        currentTask: this.currentTask,
+        searchRangeStart: this.searchRangeStart,
+        searchRangeEnd: this.searchRangeEnd,
+        completedComparisons: this.completedComparisons,
+        totalComparisons: this.totalComparisons,
+        comparisonHistory: this.comparisonHistory,
+      },
+    };
+
+    // If tournament is complete, store final results
+    if (isComplete) {
+      try {
+        const finalRankings = this.getRankings();
+        const finalRankingsWithHistory = finalRankings.map(
+          (participantId, index) => ({
+            rank: index + 1,
+            participantId,
+            matchHistory: this.getMatchHistoryForParticipant(participantId),
+          })
+        );
+
+        return {
+          ...baseState,
+          finalResults: {
+            rankings: finalRankingsWithHistory,
+            winner: this.getWinner(),
+          },
+        };
+      } catch (error) {
+        console.error(
+          'Error creating final results for insertion tournament:',
+          error
+        );
+        return baseState;
+      }
+    }
+
+    return baseState;
+  }
+
+  static fromState(
+    state: any,
+    options: TournamentOptions = {}
+  ): InsertionTournament {
+    const tournament = new InsertionTournament(state.originalEntrants, {
+      ...options,
+      taskNameColumn: state.taskNameColumn,
+      seedingMethod: 'order', // Preserve order when restoring
+    });
+
+    // Check if this is a completed tournament with final results
+    if (state.isComplete && (state as any).finalResults) {
+      console.log(
+        'Insertion tournament is complete, using stored final results'
+      );
+      tournament._finalResults = (state as any).finalResults;
+      tournament._isCompleteFromStorage = true;
+      // Still restore the state for debugging if needed
+      if (state.insertionState) {
+        tournament.unrankedTasks = state.insertionState.unrankedTasks || [];
+        tournament.sortedTasks = state.insertionState.sortedTasks || [];
+        tournament.currentTask = state.insertionState.currentTask;
+        tournament.searchRangeStart =
+          state.insertionState.searchRangeStart || 0;
+        tournament.searchRangeEnd = state.insertionState.searchRangeEnd || 0;
+        tournament.completedComparisons =
+          state.insertionState.completedComparisons || 0;
+        tournament.totalComparisons =
+          state.insertionState.totalComparisons || 0;
+        tournament.comparisonHistory =
+          state.insertionState.comparisonHistory || [];
+      }
+      return tournament;
+    }
+
+    // For incomplete tournaments, restore the state completely
+    if (state.insertionState) {
+      tournament.unrankedTasks = state.insertionState.unrankedTasks || [];
+      tournament.sortedTasks = state.insertionState.sortedTasks || [];
+      tournament.currentTask = state.insertionState.currentTask;
+      tournament.searchRangeStart = state.insertionState.searchRangeStart || 0;
+      tournament.searchRangeEnd = state.insertionState.searchRangeEnd || 0;
+      tournament.completedComparisons =
+        state.insertionState.completedComparisons || 0;
+      tournament.totalComparisons = state.insertionState.totalComparisons || 0;
+      tournament.comparisonHistory =
+        state.insertionState.comparisonHistory || [];
     }
 
     return tournament;

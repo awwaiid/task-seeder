@@ -36,7 +36,26 @@
         :current-round-matches="currentRoundMatches"
       />
 
+      <!-- Insertion Tournament Interface -->
+      <InsertionMatchup
+        v-if="tournamentType === 'insertion'"
+        data-testid="insertion-matchup"
+        :current-task="getInsertionCurrentTask()"
+        :anchor1="getInsertionAnchor1()"
+        :anchor2="getInsertionAnchor2()"
+        :task-name-column="taskNameColumn"
+        :selected-fields="selectedSecondaryFields"
+        :remaining-tasks="getInsertionRemainingTasks()"
+        :total-tasks="tasks.length"
+        :range-start="getInsertionRangeStart()"
+        :range-end="getInsertionRangeEnd()"
+        @choose-position="choosePosition"
+        @skip-task="handleSkipTask"
+      />
+
+      <!-- Traditional Tournament Interface -->
       <TaskMatchup
+        v-else
         data-testid="task-matchup"
         :task1="currentPair[0] || null"
         :task2="currentPair[1] || null"
@@ -248,10 +267,12 @@ import { ref, computed, onMounted, nextTick } from 'vue';
 import TournamentProgress from './TournamentProgress.vue';
 import TournamentSetup from './TournamentSetup.vue';
 import TaskMatchup from './TaskMatchup.vue';
+import InsertionMatchup from './InsertionMatchup.vue';
 import {
   Tournament,
   QuickSortTournament,
   SampleSortTournament,
+  InsertionTournament,
   createTournament,
 } from '../utils/TournamentRunner';
 import { BracketStorage, type SavedBracket } from '../utils/BracketStorage';
@@ -273,7 +294,11 @@ const currentPhase = ref<CurrentPhase>('setup');
 
 // Tournament state
 const tournament = ref<
-  Tournament | QuickSortTournament | SampleSortTournament | null
+  | Tournament
+  | QuickSortTournament
+  | SampleSortTournament
+  | InsertionTournament
+  | null
 >(null);
 const tournamentName = ref<string>('');
 const tournamentType = ref<TournamentType>('single');
@@ -548,7 +573,19 @@ async function chooseWinner(winnerIndex: number) {
   }
 
   // Report the result (pass winner UUID)
-  tournament.value.reportResult(currentMatch.value, winnerUuid);
+  if (tournament.value.type === 'insertion') {
+    // InsertionTournament doesn't use traditional reportResult, this shouldn't happen
+    console.error(
+      'reportResult called on InsertionTournament - use choosePosition instead'
+    );
+  } else {
+    // Cast to exclude InsertionTournament type
+    const nonInsertionTournament = tournament.value as
+      | Tournament
+      | QuickSortTournament
+      | SampleSortTournament;
+    nonInsertionTournament.reportResult(currentMatch.value, winnerUuid);
+  }
 
   // Check if tournament is complete
   if (tournament.value.isComplete()) {
@@ -572,6 +609,79 @@ async function chooseWinner(winnerIndex: number) {
     } catch (error) {
       console.error('Error auto-saving tournament during play:', error);
       // Auto-save failure shouldn't stop tournament play, but log the error
+    }
+  }
+}
+
+// Insertion Tournament specific functions
+function getInsertionCurrentTask() {
+  if (!currentMatch.value?.originalMatch?.task) return null;
+  return getTaskByUuid(currentMatch.value.originalMatch.task);
+}
+
+function getInsertionAnchor1() {
+  if (!currentMatch.value?.originalMatch?.anchor1) return null;
+  return getTaskByUuid(currentMatch.value.originalMatch.anchor1);
+}
+
+function getInsertionAnchor2() {
+  if (!currentMatch.value?.originalMatch?.anchor2) return null;
+  return getTaskByUuid(currentMatch.value.originalMatch.anchor2);
+}
+
+function getInsertionRemainingTasks() {
+  if (tournament.value?.type !== 'insertion') return 0;
+  const insertionTournament =
+    tournament.value as unknown as InsertionTournament;
+  return insertionTournament.remainingParticipants?.length || 0;
+}
+
+function getInsertionRangeStart() {
+  return currentMatch.value?.originalMatch?.rangeStart || 0;
+}
+
+function getInsertionRangeEnd() {
+  return currentMatch.value?.originalMatch?.rangeEnd || 0;
+}
+
+async function choosePosition(choice: 'above' | 'between' | 'below') {
+  if (!tournament.value || !currentMatch.value) return;
+
+  // Check if this is an InsertionTournament
+  if (tournament.value.type !== 'insertion') {
+    console.error('choosePosition called on non-insertion tournament');
+    return;
+  }
+
+  // Cast to InsertionTournament to access special reportResult method
+  const insertionTournament =
+    tournament.value as unknown as InsertionTournament;
+
+  if (insertionTournament.reportResult) {
+    insertionTournament.reportResult(currentMatch.value, choice);
+  } else {
+    console.error('InsertionTournament reportResult method not found');
+    return;
+  }
+
+  // Check if tournament is complete
+  if (tournament.value.isComplete()) {
+    currentPhase.value = 'results';
+    currentMatch.value = null;
+    // Save final state
+    try {
+      await saveTournamentToDatabase();
+    } catch (error) {
+      console.error('Error saving tournament on completion:', error);
+    }
+  } else {
+    // Get next match
+    currentMatch.value = tournament.value.getNextMatch();
+    // Auto-save progress periodically
+    try {
+      await saveTournamentToDatabase();
+    } catch (error) {
+      console.error('Error auto-saving tournament during play:', error);
     }
   }
 }

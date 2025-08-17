@@ -5,21 +5,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ### Frontend Development
+
 - `npm run dev` - Start Vite development server (frontend only, no database/UUID support)
 - `npm run dev:full` - Start full-stack development (frontend + backend with database/UUID support)
 - `npm run build` - Build frontend for production
 - `npm run preview` - Preview production build (frontend only)
 
-### Backend Development  
+### Backend Development
+
 - `npm run server:dev` - Start server in development mode with auto-reload
 - `npm run build:server` - Build server TypeScript to JavaScript
 - `npm start` - Start production server (build frontend + run server)
 
 ### Database & UUID Support
+
 - **Full-stack mode**: `npm run dev:full` or `npm start` - Includes database persistence and UUID-based tournament URLs
 - **Frontend-only mode**: `npm run dev` or `npm run preview` - Uses localStorage fallback, no UUID URLs
 
 ### Testing
+
 - `npm test` - Run unit tests with Vitest
 - `npm run test:watch` - Run tests in watch mode
 - `npm run test:coverage` - Run tests with coverage
@@ -47,6 +51,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Key Utilities
 
 #### Frontend
+
 - **TournamentRunner.ts**: Tournament logic engine with multiple algorithms:
   - Single/Double elimination tournaments using `tournament-pairings` library
   - QuickSort-based ranking with divide-and-conquer comparisons
@@ -57,6 +62,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **StorageOptimizer.js**: Storage usage monitoring and automatic cleanup
 
 #### Backend
+
 - **server/index.ts**: Express.js server serving both frontend and API
 - **server/database.ts**: SQLite database operations for tournaments and shared brackets
 - **server/routes/tournaments.ts**: Tournament CRUD API endpoints
@@ -72,17 +78,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Storage System
 
 **Primary Storage (Database)**:
+
 - SQLite database for all new tournaments with UUID-based identification
 - Automatic persistence on tournament start, progress updates, and completion
 - JSON storage of complete tournament state (tasks, matches, history, configuration)
 - Database-backed sharing with expiration (30 days default)
 
 **Fallback Storage (Legacy)**:
+
 - LocalStorage persistence for compatibility with older tournaments
 - URL-based sharing for smaller brackets (with size limitations)
 - Automatic fallback if database operations fail
 
 **Tournament Lifecycle**:
+
 1. Tournament created → Save to database with UUID
 2. Match completed → Auto-save progress to database
 3. Tournament finished → Final state saved to database
@@ -101,6 +110,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 TaskSeeder offers three distinct ranking algorithms, each optimized for different use cases:
 
 ### Tournament Mode (Single Elimination)
+
 - **Best for**: Finding a clear winner from any size list
 - **Process**: Traditional bracket elimination (winner advances, loser eliminated)
 - **Comparisons**: Exactly `n-1` matches required
@@ -108,6 +118,7 @@ TaskSeeder offers three distinct ranking algorithms, each optimized for differen
 - **Efficiency**: Most efficient for determining top choice
 
 ### Double Elimination
+
 - **Best for**: More robust winner selection with second chances
 - **Process**: Losers bracket gives eliminated participants another chance
 - **Comparisons**: Up to `2n-1` matches (typically fewer)
@@ -115,6 +126,7 @@ TaskSeeder offers three distinct ranking algorithms, each optimized for differen
 - **Efficiency**: Balanced between robustness and speed
 
 ### QuickSort Mode
+
 - **Best for**: Complete priority rankings of medium-sized lists (10-50 tasks)
 - **Process**: Divide-and-conquer algorithm using pivot comparisons
 - **Comparisons**: Approximately `n log n` matches on average
@@ -122,6 +134,7 @@ TaskSeeder offers three distinct ranking algorithms, each optimized for differen
 - **Efficiency**: Optimal for full rankings without excessive comparisons
 
 #### QuickSort Algorithm Details
+
 - **Implementation**: Custom QuickSort tournament class in `TournamentRunner.ts:852-1221`
 - **Pivot Strategy**: Uses middle element to minimize worst-case scenarios
 - **Partitioning**: Compares all elements against pivot, creating sub-partitions
@@ -129,11 +142,12 @@ TaskSeeder offers three distinct ranking algorithms, each optimized for differen
 - **Completion**: Tournament ends when all partitions are fully sorted
 
 #### When to Choose Each Algorithm
-| Algorithm | Participants | Goal | Time Investment |
-|-----------|-------------|------|-----------------|
-| **Tournament** | Any size | Find winner | Minimal |
-| **Double Elimination** | Any size | Robust winner | Moderate |
-| **QuickSort** | 10-50 | Complete ranking | Efficient |
+
+| Algorithm              | Participants | Goal             | Time Investment |
+| ---------------------- | ------------ | ---------------- | --------------- |
+| **Tournament**         | Any size     | Find winner      | Minimal         |
+| **Double Elimination** | Any size     | Robust winner    | Moderate        |
+| **QuickSort**          | 10-50        | Complete ranking | Efficient       |
 
 ## Testing Rules
 

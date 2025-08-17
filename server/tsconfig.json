@@ -18,13 +18,6 @@
     "sourceMap": true,
     "types": ["node"]
   },
-  "include": [
-    "**/*.ts",
-    "**/*.js"
-  ],
-  "exclude": [
-    "node_modules",
-    "../dist",
-    "../dist-server"
-  ]
+  "include": ["**/*.ts", "**/*.js"],
+  "exclude": ["node_modules", "../dist", "../dist-server"]
 }

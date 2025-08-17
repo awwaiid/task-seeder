@@ -11,7 +11,12 @@ export type Participant = Task;
 
 export type ParticipantUUID = string;
 
-export type TournamentType = 'single' | 'double' | 'quicksort' | 'samplesort';
+export type TournamentType =
+  | 'single'
+  | 'double'
+  | 'quicksort'
+  | 'samplesort'
+  | 'insertion';
 
 export type CurrentPhase = 'setup' | 'results' | 'matchups';
 
