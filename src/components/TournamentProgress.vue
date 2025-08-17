@@ -1,6 +1,10 @@
 <template>
   <div>
-    <h2>
+    <h2 v-if="tournamentType === 'insertion'">
+      Step {{ insertionCurrentStep }} of ~{{ insertionEstimatedSteps }}, Task
+      {{ insertionCurrentTask }} of {{ taskCount }} - {{ tournamentName }}
+    </h2>
+    <h2 v-else>
       Match {{ displayMatch }} of {{ currentRoundMatches }}, Round
       {{ displayRound }} of {{ totalRounds }} - {{ tournamentName }}
     </h2>
@@ -133,6 +137,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  sortedTasksCount: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const totalRounds = computed(() => {
@@ -242,5 +250,23 @@ const bracketDescription = computed(() => {
     }
   }
   return props.currentBracketType;
+});
+
+// Insertion tournament specific calculations
+const insertionCurrentStep = computed(() => {
+  if (props.tournamentType !== 'insertion') return 0;
+  return props.sortedTasksCount;
+});
+
+const insertionEstimatedSteps = computed(() => {
+  if (props.tournamentType !== 'insertion' || props.sortedTasksCount <= 1)
+    return 1;
+  // Calculate log base 3 of currently sorted tasks count, rounded up
+  return Math.ceil(Math.log(props.sortedTasksCount) / Math.log(3));
+});
+
+const insertionCurrentTask = computed(() => {
+  if (props.tournamentType !== 'insertion') return 0;
+  return props.sortedTasksCount + 1;
 });
 </script>

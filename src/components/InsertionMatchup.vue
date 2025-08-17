@@ -27,7 +27,7 @@
       tabindex="0"
       @keydown="handleKeydown"
     >
-      <!-- Current Task to Rank (prominent display) -->
+      <!-- Current Task to Rank (left side on wide screens) -->
       <div class="task-to-rank">
         <div class="task-to-rank-header">Task to Rank</div>
         <div class="task-card current-task">
@@ -65,18 +65,20 @@
         </div>
       </div>
 
-      <!-- Position Selection Area -->
+      <!-- Position Selection Area (right side on wide screens) -->
       <div class="position-selection">
+        <div class="position-selection-header">Choose Position</div>
+
         <!-- Above Button -->
         <button
           class="position-button above-button"
           :disabled="!currentTask"
           @click="choosePosition('above')"
         >
-          <div class="button-label">Above</div>
-          <div class="button-description">
-            {{ anchor2 ? 'Higher priority than both' : 'Higher priority' }}
-          </div>
+          <span class="button-label">Above</span>
+          <span class="button-description">
+            - {{ anchor2 ? 'Higher priority than both' : 'Higher priority' }}
+          </span>
         </button>
 
         <!-- Anchor Task 1 -->
@@ -94,8 +96,8 @@
           :disabled="!currentTask"
           @click="choosePosition('between')"
         >
-          <div class="button-label">Between</div>
-          <div class="button-description">Priority between A and B</div>
+          <span class="button-label">Between</span>
+          <span class="button-description">- Priority between A and B</span>
         </button>
 
         <!-- Anchor Task 2 -->
@@ -112,10 +114,10 @@
           :disabled="!currentTask"
           @click="choosePosition('below')"
         >
-          <div class="button-label">Below</div>
-          <div class="button-description">
-            {{ anchor2 ? 'Lower priority than both' : 'Lower priority' }}
-          </div>
+          <span class="button-label">Below</span>
+          <span class="button-description">
+            - {{ anchor2 ? 'Lower priority than both' : 'Lower priority' }}
+          </span>
         </button>
       </div>
     </div>
@@ -204,23 +206,46 @@ onMounted(() => {
 
 <style scoped>
 .insertion-choice {
+  display: flex;
+  gap: 30px;
+  align-items: center;
   min-height: 400px;
   padding: 20px;
   outline: none;
 }
 
 .task-to-rank {
-  margin-bottom: 30px;
-  text-align: center;
+  flex: 1;
+  max-width: 400px;
 }
 
 .task-to-rank-header {
   font-size: 14px;
   font-weight: bold;
   color: #2c3e50;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   text-transform: uppercase;
   letter-spacing: 1px;
+  text-align: center;
+}
+
+.position-selection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  max-width: 400px;
+}
+
+.position-selection-header {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
 }
 
 .task-card {
@@ -229,7 +254,7 @@ onMounted(() => {
   border-radius: 8px;
   padding: 20px;
   margin: 10px auto;
-  max-width: 400px;
+  width: 100%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
 }
@@ -294,25 +319,22 @@ onMounted(() => {
   color: #8e44ad;
 }
 
-.position-selection {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
-
 .position-button {
   background: #3498db;
   color: white;
   border: none;
   border-radius: 8px;
-  padding: 15px 30px;
+  padding: 12px 20px;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 200px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .position-button:hover:not(:disabled) {
@@ -355,11 +377,10 @@ onMounted(() => {
 .button-label {
   font-size: 16px;
   font-weight: bold;
-  margin-bottom: 4px;
 }
 
 .button-description {
-  font-size: 12px;
+  font-size: 13px;
   opacity: 0.9;
   font-weight: normal;
 }
@@ -369,6 +390,7 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   position: relative;
+  width: 100%;
 }
 
 .anchor-label {
@@ -387,17 +409,33 @@ onMounted(() => {
   font-weight: bold;
 }
 
-/* Responsive design */
-@media (max-width: 600px) {
+/* Responsive design - stack vertically on smaller screens */
+@media (max-width: 768px) {
+  .insertion-choice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .task-to-rank,
+  .position-selection {
+    max-width: 100%;
+  }
+
   .task-card {
-    max-width: 90%;
     padding: 15px;
   }
 
   .position-button {
     min-width: 150px;
-    padding: 12px 20px;
+    padding: 10px 16px;
     font-size: 14px;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .button-description {
+    font-size: 11px;
   }
 
   .insertion-choice {

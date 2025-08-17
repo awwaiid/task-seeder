@@ -2274,6 +2274,10 @@ export class InsertionTournament {
     return [...this.sortedTasks];
   }
 
+  getSortedTasksCount(): number {
+    return this.sortedTasks.length;
+  }
+
   getWinner(): ParticipantUUID | null {
     if (!this.isComplete()) {
       return null;

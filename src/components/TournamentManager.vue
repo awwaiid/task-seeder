@@ -34,6 +34,7 @@
         :current-bracket-type="currentBracketType"
         :total-rounds="totalRounds"
         :current-round-matches="currentRoundMatches"
+        :sorted-tasks-count="getInsertionSortedTasksCount()"
       />
 
       <!-- Insertion Tournament Interface -->
@@ -634,6 +635,13 @@ function getInsertionRemainingTasks() {
   const insertionTournament =
     tournament.value as unknown as InsertionTournament;
   return insertionTournament.remainingParticipants?.length || 0;
+}
+
+function getInsertionSortedTasksCount() {
+  if (tournament.value?.type !== 'insertion') return 0;
+  const insertionTournament =
+    tournament.value as unknown as InsertionTournament;
+  return insertionTournament.getSortedTasksCount?.() || 0;
 }
 
 function getInsertionRangeStart() {
