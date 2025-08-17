@@ -665,7 +665,14 @@ async function choosePosition(choice: 'above' | 'between' | 'below') {
   }
 
   // Check if tournament is complete
-  if (tournament.value.isComplete()) {
+  const isComplete = tournament.value.isComplete();
+  console.log('CHOOSE POSITION COMPLETION CHECK:', {
+    isComplete,
+    currentPhase: currentPhase.value,
+  });
+
+  if (isComplete) {
+    console.log('SETTING PHASE TO RESULTS');
     currentPhase.value = 'results';
     currentMatch.value = null;
     // Save final state
@@ -675,8 +682,10 @@ async function choosePosition(choice: 'above' | 'between' | 'below') {
       console.error('Error saving tournament on completion:', error);
     }
   } else {
+    console.log('GETTING NEXT MATCH');
     // Get next match
     currentMatch.value = tournament.value.getNextMatch();
+    console.log('NEXT MATCH SET TO:', currentMatch.value);
     // Auto-save progress periodically
     try {
       await saveTournamentToDatabase();

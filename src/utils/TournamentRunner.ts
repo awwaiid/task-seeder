@@ -1856,7 +1856,8 @@ export class InsertionTournament {
 
     // If we don't have a current task, start with the next unranked task
     if (!this.currentTask && this.unrankedTasks.length > 0) {
-      const nextTask = this.unrankedTasks.shift();
+      // Don't remove from unrankedTasks yet - just peek at the first one
+      const nextTask = this.unrankedTasks[0];
       if (nextTask) {
         this.currentTask = nextTask;
 
@@ -1870,12 +1871,31 @@ export class InsertionTournament {
             rangeStart: 0,
             rangeEnd: 0,
           });
+          // Now remove from unranked since it's positioned
+          const removedTask = this.unrankedTasks.shift();
+          console.log('FIRST TASK POSITIONED:', {
+            firstTask: this.currentTask,
+            removedFromUnranked: removedTask,
+            sortedTasksLength: this.sortedTasks.length,
+            unrankedTasksLength: this.unrankedTasks.length,
+            sortedTasks: this.sortedTasks,
+            unrankedTasks: this.unrankedTasks,
+          });
+
+          // Validation: removed task should match current task
+          if (removedTask !== this.currentTask) {
+            throw new Error(
+              `Removed wrong task: expected ${this.currentTask}, got ${removedTask}`
+            );
+          }
+
           this.currentTask = undefined;
           return this.getNextMatch(); // Get next task
         } else {
-          // Initialize search range to cover entire sorted list
+          // Initialize search range to cover all possible insertion positions
+          // With N sorted tasks, there are N+1 possible insertion positions
           this.searchRangeStart = 0;
-          this.searchRangeEnd = this.sortedTasks.length;
+          this.searchRangeEnd = this.sortedTasks.length + 1;
         }
       }
     }
@@ -1885,7 +1905,7 @@ export class InsertionTournament {
     }
 
     // Check if we've narrowed down to exact position
-    if (this.searchRangeEnd - this.searchRangeStart <= 1) {
+    if (this.searchRangeEnd - this.searchRangeStart < 1) {
       // Insert at the determined position
       const insertPosition = this.searchRangeEnd;
       this.sortedTasks.splice(insertPosition, 0, this.currentTask);
@@ -1899,6 +1919,24 @@ export class InsertionTournament {
         rangeEnd: this.searchRangeEnd,
       });
 
+      // Now remove from unranked since it's positioned
+      const removedTask = this.unrankedTasks.shift();
+      console.log('POSITIONING COMPLETE:', {
+        positionedTask: this.currentTask,
+        removedFromUnranked: removedTask,
+        sortedTasksLength: this.sortedTasks.length,
+        unrankedTasksLength: this.unrankedTasks.length,
+        sortedTasks: this.sortedTasks,
+        unrankedTasks: this.unrankedTasks,
+      });
+
+      // Validation: removed task should match current task
+      if (removedTask !== this.currentTask) {
+        throw new Error(
+          `Removed wrong task: expected ${this.currentTask}, got ${removedTask}`
+        );
+      }
+
       this.currentTask = undefined;
       return this.getNextMatch(); // Get next task
     }
@@ -1906,9 +1944,30 @@ export class InsertionTournament {
     // Determine anchor tasks based on sorted list size and current range
     const rangeSize = this.searchRangeEnd - this.searchRangeStart;
 
+    console.log('ANCHOR SELECTION DECISION:', {
+      currentTask: this.currentTask,
+      sortedTasksLength: this.sortedTasks.length,
+      sortedTasks: this.sortedTasks,
+      unrankedTasksLength: this.unrankedTasks.length,
+      rangeSize,
+      searchRangeStart: this.searchRangeStart,
+      searchRangeEnd: this.searchRangeEnd,
+    });
+
     if (this.sortedTasks.length === 1) {
       // Second task: simple Above/Below choice
       const anchor1 = this.sortedTasks[0];
+
+      // Validation: ensure anchor is from sorted tasks only
+      if (anchor1 && this.unrankedTasks.includes(anchor1)) {
+        throw new Error(
+          `Anchor1 ${anchor1} found in unranked tasks - this should not happen`
+        );
+      }
+      if (anchor1 === this.currentTask) {
+        throw new Error(`Anchor cannot be the current task being positioned`);
+      }
+
       return {
         player1: this.currentTask || null,
         player2: anchor1 || null,
@@ -1932,6 +1991,16 @@ export class InsertionTournament {
       const anchor1 =
         this.sortedTasks[anchorIndex] || this.sortedTasks[anchorIndex - 1];
 
+      // Validation: ensure anchor is from sorted tasks only
+      if (anchor1 && this.unrankedTasks.includes(anchor1)) {
+        throw new Error(
+          `Anchor1 ${anchor1} found in unranked tasks - this should not happen`
+        );
+      }
+      if (anchor1 === this.currentTask) {
+        throw new Error(`Anchor cannot be the current task being positioned`);
+      }
+
       return {
         player1: this.currentTask || null,
         player2: anchor1 || null,
@@ -1951,11 +2020,61 @@ export class InsertionTournament {
       };
     } else {
       // Range has 3+ positions: trisection with Above/Between/Below
+      // Calculate trisection points within the current search range
       const oneThird = Math.floor(this.searchRangeStart + rangeSize / 3);
       const twoThirds = Math.floor(this.searchRangeStart + (2 * rangeSize) / 3);
 
-      const anchor1 = this.sortedTasks[oneThird];
-      const anchor2 = this.sortedTasks[twoThirds];
+      // Convert insertion positions to task indices
+      // For insertion position P, we want the task at index P-1 (the task before that position)
+      // But clamp to valid task indices
+      const anchor1Index = Math.max(
+        0,
+        Math.min(oneThird - 1, this.sortedTasks.length - 1)
+      );
+      const anchor2Index = Math.max(
+        0,
+        Math.min(twoThirds - 1, this.sortedTasks.length - 1)
+      );
+
+      // If both anchors would be the same, spread them out
+      const finalAnchor1Index = anchor1Index;
+      const finalAnchor2Index =
+        anchor1Index === anchor2Index
+          ? Math.min(anchor1Index + 1, this.sortedTasks.length - 1)
+          : anchor2Index;
+
+      const anchor1 = this.sortedTasks[finalAnchor1Index];
+      const anchor2 = this.sortedTasks[finalAnchor2Index];
+
+      console.log('TRISECTION ANCHORS:', {
+        rangeSize,
+        searchRangeStart: this.searchRangeStart,
+        searchRangeEnd: this.searchRangeEnd,
+        oneThird,
+        twoThirds,
+        anchor1Index,
+        anchor2Index,
+        finalAnchor1Index,
+        finalAnchor2Index,
+        anchor1,
+        anchor2,
+        sortedTasks: this.sortedTasks,
+      });
+
+      // Validation: ensure anchors are from sorted tasks only
+      if (anchor1 && this.unrankedTasks.includes(anchor1)) {
+        throw new Error(
+          `Anchor1 ${anchor1} found in unranked tasks - this should not happen`
+        );
+      }
+      if (anchor2 && this.unrankedTasks.includes(anchor2)) {
+        throw new Error(
+          `Anchor2 ${anchor2} found in unranked tasks - this should not happen`
+        );
+      }
+      if (anchor1 === this.currentTask || anchor2 === this.currentTask) {
+        throw new Error(`Anchor cannot be the current task being positioned`);
+      }
 
       return {
         player1: this.currentTask || null,
@@ -1967,8 +2086,8 @@ export class InsertionTournament {
           task: this.currentTask || null,
           anchor1: anchor1 || null,
           anchor2: anchor2 || null,
-          anchor1Index: oneThird,
-          anchor2Index: twoThirds,
+          anchor1Index: finalAnchor1Index,
+          anchor2Index: finalAnchor2Index,
           rangeStart: this.searchRangeStart,
           rangeEnd: this.searchRangeEnd,
           comparisonType: 'three-way', // Above/Between/Below
@@ -1997,41 +2116,73 @@ export class InsertionTournament {
 
     this.completedComparisons++;
 
+    console.log('REPORTRESULT DEBUG:', {
+      task: this.currentTask,
+      choice,
+      comparisonType,
+      anchor1Index,
+      anchor2Index,
+      beforeRangeStart: this.searchRangeStart,
+      beforeRangeEnd: this.searchRangeEnd,
+    });
+
     // Update search range based on choice and comparison type
     if (comparisonType === 'two-way') {
       // Simple Above/Below choice with single anchor
+      // anchor1Index is task index, insertion positions are [anchor1Index, anchor1Index+1]
       switch (choice) {
-        case 'above':
-          // Task goes above the anchor
-          this.searchRangeEnd = anchor1Index || 0;
+        case 'above': {
+          // Task goes above the anchor (before that task's insertion position)
+          const abovePos = anchor1Index || 0;
+          this.searchRangeStart = abovePos;
+          this.searchRangeEnd = abovePos;
           break;
-        case 'below':
-          // Task goes below the anchor
-          this.searchRangeStart = (anchor1Index || 0) + 1;
+        }
+        case 'below': {
+          // Task goes below the anchor (after that task's insertion position)
+          const belowPos = (anchor1Index || 0) + 1;
+          this.searchRangeStart = belowPos;
+          this.searchRangeEnd = belowPos;
           break;
-        case 'between':
+        }
+        case 'between': {
           // Between not valid for two-way, treat as below
-          this.searchRangeStart = (anchor1Index || 0) + 1;
+          const betweenPos = (anchor1Index || 0) + 1;
+          this.searchRangeStart = betweenPos;
+          this.searchRangeEnd = betweenPos;
           break;
+        }
       }
     } else {
       // Three-way choice with two anchors (trisection)
+      // Convert task indices to insertion position ranges
+      const anchor1InsertPos = anchor1Index || 0;
+      const anchor2InsertPos = (anchor2Index || 0) + 1;
+
       switch (choice) {
         case 'above':
-          // Task goes above both anchors (first third)
-          this.searchRangeEnd = anchor1Index || 0;
+          // Task goes above both anchors (before anchor1)
+          this.searchRangeEnd = anchor1InsertPos;
           break;
         case 'between':
-          // Task goes between the anchors (middle third)
-          this.searchRangeStart = (anchor1Index || 0) + 1;
-          this.searchRangeEnd = anchor2Index || 0;
+          // Task goes between the anchors (after anchor1, before anchor2)
+          this.searchRangeStart = anchor1InsertPos + 1;
+          this.searchRangeEnd = anchor2InsertPos;
           break;
         case 'below':
-          // Task goes below both anchors (last third)
-          this.searchRangeStart = (anchor2Index || 0) + 1;
+          // Task goes below both anchors (after anchor2)
+          this.searchRangeStart = anchor2InsertPos;
           break;
       }
     }
+
+    console.log('REPORTRESULT AFTER RANGE UPDATE:', {
+      task: this.currentTask,
+      choice,
+      afterRangeStart: this.searchRangeStart,
+      afterRangeEnd: this.searchRangeEnd,
+      rangeSize: this.searchRangeEnd - this.searchRangeStart,
+    });
 
     // Record this comparison
     this.comparisonHistory.push({
@@ -2043,6 +2194,51 @@ export class InsertionTournament {
       rangeStart: rangeStart || 0,
       rangeEnd: rangeEnd || 0,
     });
+
+    // Check if we've narrowed down to exact position
+    const rangeSize = this.searchRangeEnd - this.searchRangeStart;
+    const shouldPosition = rangeSize < 1;
+
+    console.log('POSITIONING CHECK:', {
+      rangeSize,
+      comparisonType,
+      shouldPosition,
+    });
+
+    if (shouldPosition) {
+      // Insert at the determined position
+      const insertPosition = this.searchRangeStart;
+      this.sortedTasks.splice(insertPosition, 0, this.currentTask);
+
+      // Record the final placement
+      this.comparisonHistory.push({
+        task: this.currentTask,
+        choice: 'positioned',
+        insertPosition,
+        rangeStart: this.searchRangeStart,
+        rangeEnd: this.searchRangeEnd,
+      });
+
+      // Now remove from unranked since it's positioned
+      const removedTask = this.unrankedTasks.shift();
+      console.log('POSITIONING COMPLETE:', {
+        positionedTask: this.currentTask,
+        removedFromUnranked: removedTask,
+        sortedTasksLength: this.sortedTasks.length,
+        unrankedTasksLength: this.unrankedTasks.length,
+        sortedTasks: this.sortedTasks,
+        unrankedTasks: this.unrankedTasks,
+      });
+
+      // Validation: removed task should match current task
+      if (removedTask !== this.currentTask) {
+        throw new Error(
+          `Removed wrong task: expected ${this.currentTask}, got ${removedTask}`
+        );
+      }
+
+      this.currentTask = undefined;
+    }
   }
 
   // Legacy reportResult method for compatibility (maps winner selection to insertion choice)
@@ -2059,7 +2255,16 @@ export class InsertionTournament {
     if (this._isCompleteFromStorage && this._finalResults) {
       return true;
     }
-    return this.unrankedTasks.length === 0 && !this.currentTask;
+
+    const isComplete = this.unrankedTasks.length === 0 && !this.currentTask;
+    console.log('INSERTION TOURNAMENT COMPLETION CHECK:', {
+      unrankedTasksLength: this.unrankedTasks.length,
+      currentTask: this.currentTask,
+      sortedTasksLength: this.sortedTasks.length,
+      isComplete,
+    });
+
+    return isComplete;
   }
 
   getRankings(): ParticipantUUID[] {
