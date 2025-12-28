@@ -13,11 +13,20 @@ vi.mock('papaparse', () => ({
 }));
 
 // Setup global DOM mocks
-global.URL = {
-  createObjectURL: vi.fn(() => 'mock-url'),
-  revokeObjectURL: vi.fn(),
+// In vitest 4 + jsdom 27, URL is a proper constructor, so we only mock the methods we need
+if (!global.URL.createObjectURL) {
+  global.URL.createObjectURL = vi.fn(() => 'mock-url');
+}
+if (!global.URL.revokeObjectURL) {
+  global.URL.revokeObjectURL = vi.fn();
+}
+// Blob should be a proper class constructor for vitest 4
+global.Blob = class MockBlob {
+  constructor(content, options) {
+    this.content = content;
+    this.options = options;
+  }
 };
-global.Blob = vi.fn((content, options) => ({ content, options }));
 
 // Setup proper DOM environment
 Object.defineProperty(window, 'alert', {

@@ -78,8 +78,8 @@ app.get('/api/health', (req: Request, res: Response) => {
 // Serve static files from dist directory
 app.use(express.static(distPath));
 
-// Catch-all handler for SPA routing
-app.get('*', (req: Request, res: Response) => {
+// Catch-all handler for SPA routing (Express 5 requires regex for wildcards)
+app.get(/.*/, (req: Request, res: Response) => {
   // Skip API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API route not found' });

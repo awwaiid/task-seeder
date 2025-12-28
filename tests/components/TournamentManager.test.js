@@ -12,55 +12,57 @@ vi.mock('papaparse', () => ({
 
 // Mock Tournament and related utilities
 vi.mock('../../src/utils/TournamentRunner.js', () => {
-  const Tournament = vi.fn().mockImplementation((type, entrants) => {
-    let currentMatchNum = 1;
-    let isCompleted = entrants && entrants.length <= 1; // Single player tournament is immediately complete
-    let matches = [];
-    return {
-      getNextMatch: vi.fn(() => {
-        if (isCompleted || !entrants || entrants.length <= 1) {
-          return null;
-        }
-        return {
-          player1: 'task_0', // Now returns UUID strings
-          player2: 'task_1', // Now returns UUID strings
-          round: 1,
-          matchInRound: 1,
-          bracket: 'main',
-        };
-      }),
-      getCurrentMatchNumber: vi.fn(() => currentMatchNum),
-      getTotalMatches: vi.fn().mockReturnValue(3),
-      getTotalRounds: vi.fn().mockReturnValue(2),
-      getMatchesInRound: vi.fn().mockReturnValue(2),
-      isComplete: vi.fn(
-        () => isCompleted || (entrants && entrants.length <= 1)
-      ),
-      getRankings: vi.fn().mockReturnValue([]),
-      get matches() {
-        return matches;
-      },
-      recordWinner: vi.fn((winner, loser) => {
-        matches.push({ winner, loser });
-        currentMatchNum++;
-        if (currentMatchNum > 3) {
-          isCompleted = true;
-        }
-      }),
-      reportResult: vi.fn((match, winner) => {
-        matches.push({ match, winner });
-        currentMatchNum++;
-        if (currentMatchNum > 3) {
-          isCompleted = true;
-        }
-      }),
-    };
-  });
+  // Proper class constructor for vitest 4 compatibility
+  class MockTournament {
+    constructor(type, entrants) {
+      this.type = type;
+      this.entrants = entrants;
+      this.currentMatchNum = 1;
+      this.isCompleted = entrants && entrants.length <= 1; // Single player tournament is immediately complete
+      this.matches = [];
+    }
+
+    getNextMatch = vi.fn(() => {
+      if (this.isCompleted || !this.entrants || this.entrants.length <= 1) {
+        return null;
+      }
+      return {
+        player1: 'task_0', // Now returns UUID strings
+        player2: 'task_1', // Now returns UUID strings
+        round: 1,
+        matchInRound: 1,
+        bracket: 'main',
+      };
+    });
+
+    getCurrentMatchNumber = vi.fn(() => this.currentMatchNum);
+    getTotalMatches = vi.fn().mockReturnValue(3);
+    getTotalRounds = vi.fn().mockReturnValue(2);
+    getMatchesInRound = vi.fn().mockReturnValue(2);
+    isComplete = vi.fn(() => this.isCompleted || (this.entrants && this.entrants.length <= 1));
+    getRankings = vi.fn().mockReturnValue([]);
+
+    recordWinner = vi.fn((winner, loser) => {
+      this.matches.push({ winner, loser });
+      this.currentMatchNum++;
+      if (this.currentMatchNum > 3) {
+        this.isCompleted = true;
+      }
+    });
+
+    reportResult = vi.fn((match, winner) => {
+      this.matches.push({ match, winner });
+      this.currentMatchNum++;
+      if (this.currentMatchNum > 3) {
+        this.isCompleted = true;
+      }
+    });
+  }
 
   return {
-    Tournament,
+    Tournament: MockTournament,
     createTournament: vi.fn((type, entrants, options = {}) => {
-      return new Tournament(type, entrants, options);
+      return new MockTournament(type, entrants, options);
     }),
   };
 });
