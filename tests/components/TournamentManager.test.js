@@ -12,7 +12,6 @@ vi.mock('papaparse', () => ({
 
 // Mock Tournament and related utilities
 vi.mock('../../src/utils/TournamentRunner.js', () => {
-  // Proper class constructor for vitest 4 compatibility
   class MockTournament {
     constructor(type, entrants) {
       this.type = type;

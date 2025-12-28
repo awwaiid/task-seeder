@@ -78,7 +78,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 // Serve static files from dist directory
 app.use(express.static(distPath));
 
-// Catch-all handler for SPA routing (Express 5 requires regex for wildcards)
+// Catch-all handler for SPA routing
 app.get(/.*/, (req: Request, res: Response) => {
   // Skip API routes
   if (req.path.startsWith('/api/')) {

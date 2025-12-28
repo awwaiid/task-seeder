@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import alloy from 'alloy-lang';
 
 describe('Basic Tournament Properties', () => {
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should verify that every match has exactly one winner', () => {
     const tournamentModel = `
       sig Player {}
@@ -27,7 +27,7 @@ describe('Basic Tournament Properties', () => {
     }
   });
 
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should verify basic tournament structure - each player appears in at most one match at a time', () => {
     const tournamentModel = `
       sig Player {}
@@ -57,7 +57,7 @@ describe('Basic Tournament Properties', () => {
     expect(instance.values).toBeDefined();
   });
 
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should verify that n players require exactly n-1 matches for single elimination', () => {
     const tournamentModel = `
       sig Player {}
@@ -90,7 +90,7 @@ describe('Basic Tournament Properties', () => {
     expect(result.instances.length).toBeGreaterThan(0);
   });
 
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should verify tournament has exactly one winner in valid tournaments', () => {
     const tournamentModel = `
       sig Player {}
@@ -125,7 +125,7 @@ describe('Basic Tournament Properties', () => {
     }
   });
 
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should validate tournament sizes from 2 to 5 players', () => {
     for (let numPlayers = 2; numPlayers <= 5; numPlayers++) {
       const numMatches = numPlayers - 1;

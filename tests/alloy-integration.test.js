@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import alloy from 'alloy-lang';
 
 describe('Alloy Integration', () => {
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should run basic Alloy model', async () => {
     const alloyModel = `
       sig Node {
@@ -22,7 +22,7 @@ describe('Alloy Integration', () => {
     expect(Array.isArray(result.instances)).toBe(true);
   });
 
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should handle simple tournament properties', async () => {
     const tournamentModel = `
       sig Player {}

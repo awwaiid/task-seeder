@@ -8,9 +8,7 @@ describe('Server Routes', () => {
     it('should accept the catch-all route pattern without errors', () => {
       const app = express();
 
-      // This should NOT throw an error
-      // If Express 5 doesn't support the pattern, it will throw during route registration
-      // With the old '*' pattern, this would throw: PathError [TypeError]: Missing parameter name at index 1: *
+      // Validates that the route pattern is compatible with the Express version
       expect(() => {
         app.get(/.*/, (req, res) => {
           res.send('OK');
@@ -21,12 +19,12 @@ describe('Server Routes', () => {
     it('should serve index.html for non-API routes', async () => {
       const app = express();
 
-      // Mock the catch-all route (matches server/index.ts implementation)
+      // Matches server/index.ts catch-all route implementation
       app.get(/.*/, (req, res) => {
         if (req.path.startsWith('/api/')) {
           return res.status(404).json({ error: 'API route not found' });
         }
-        res.send('<html><body>SPA</body></html>'); // Mock index.html
+        res.send('<html><body>SPA</body></html>');
       });
 
       const response = await request(app).get('/some/random/route');
@@ -96,18 +94,10 @@ describe('Server Routes', () => {
   });
 
   describe('Route pattern compatibility', () => {
-    it('should validate that wildcard string pattern fails in Express 5', () => {
+    it('should accept regex patterns for wildcard routes', () => {
       const app = express();
 
-      // This demonstrates the old pattern that breaks in Express 5
-      // Uncomment to see the error: PathError [TypeError]: Missing parameter name at index 1: *
-      // expect(() => {
-      //   app.get('*', (req, res) => {
-      //     res.send('OK');
-      //   });
-      // }).toThrow(/Missing parameter name/);
-
-      // Instead, we verify the regex pattern works
+      // Verify the regex pattern works for catch-all routes
       expect(() => {
         app.get(/.*/, (req, res) => {
           res.send('OK');

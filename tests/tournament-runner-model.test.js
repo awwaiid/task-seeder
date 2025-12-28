@@ -127,7 +127,7 @@ describe('TournamentRunner Alloy Model', () => {
     }
   `;
 
-  // Skip due to Node.js punycode deprecation warning causing alloy-lang wrapper to fail
+  // Skipped: alloy-lang wrapper fails due to punycode deprecation warning
   it.skip('should have basic structure', () => {
     const simpleModel = `
       sig Player {}
