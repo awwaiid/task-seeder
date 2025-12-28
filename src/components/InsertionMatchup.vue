@@ -30,7 +30,7 @@
       <!-- Current Task to Rank (left side on wide screens) -->
       <div class="task-to-rank">
         <div class="task-to-rank-header">Task to Rank</div>
-        <div class="task-card current-task">
+        <div class="task-card current-task" :class="currentTaskColorClass">
           <div class="task-title">{{ getTaskTitle(currentTask) }}</div>
           <div class="task-details">
             <div
@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 
 interface Task {
   [key: string]: any;
@@ -151,6 +151,7 @@ const props = defineProps<{
   totalTasks?: number;
   rangeStart?: number;
   rangeEnd?: number;
+  currentTaskNumber?: number;
 }>();
 
 const emit = defineEmits<{
@@ -159,6 +160,14 @@ const emit = defineEmits<{
 }>();
 
 const matchupContainer = ref<HTMLElement | null>(null);
+
+const currentTaskColorClass = computed(() => {
+  if (!props.currentTaskNumber) return '';
+  // Alternate between light green (even) and light blue (odd)
+  return props.currentTaskNumber % 2 === 0
+    ? 'current-task-green'
+    : 'current-task-blue';
+});
 
 function getTaskTitle(task: Task | null): string {
   if (!task) return 'No Task';
@@ -284,6 +293,18 @@ onMounted(() => {
   border-color: #3498db;
   background: #f8f9fa;
   box-shadow: 0 4px 8px rgba(52, 152, 219, 0.2);
+}
+
+.task-card.current-task-blue {
+  background: #e8f4fd;
+  border-color: #3498db;
+  box-shadow: 0 4px 8px rgba(52, 152, 219, 0.2);
+}
+
+.task-card.current-task-green {
+  background: #e8f6f0;
+  border-color: #27ae60;
+  box-shadow: 0 4px 8px rgba(39, 174, 96, 0.2);
 }
 
 .task-card.anchor {

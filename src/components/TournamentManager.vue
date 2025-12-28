@@ -51,6 +51,7 @@
         :total-tasks="tasks.length"
         :range-start="getInsertionRangeStart()"
         :range-end="getInsertionRangeEnd()"
+        :current-task-number="getInsertionSortedTasksCount() + 1"
         @choose-position="choosePosition"
         @skip-task="handleSkipTask"
       />
