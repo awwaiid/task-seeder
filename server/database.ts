@@ -55,7 +55,22 @@ export class Database {
         }
 
         console.log('Connected to SQLite database:', this.dbPath);
-        this.createTables().then(resolve).catch(reject);
+
+        // Enable WAL mode for better concurrent access
+        this.db!.run('PRAGMA journal_mode = WAL', walErr => {
+          if (walErr) {
+            console.warn('Warning: Could not enable WAL mode:', walErr);
+          }
+
+          // Set busy timeout to handle concurrent access
+          this.db!.run('PRAGMA busy_timeout = 5000', timeoutErr => {
+            if (timeoutErr) {
+              console.warn('Warning: Could not set busy timeout:', timeoutErr);
+            }
+
+            this.createTables().then(resolve).catch(reject);
+          });
+        });
       });
     });
   }
@@ -89,28 +104,35 @@ export class Database {
     `;
 
     const createIndex = `
-      CREATE INDEX IF NOT EXISTS idx_tournaments_last_modified 
+      CREATE INDEX IF NOT EXISTS idx_tournaments_last_modified
       ON tournaments(last_modified DESC)
     `;
 
-    return new Promise((resolve, reject) => {
-      this.db!.serialize(() => {
+    // Run table creation sequentially using async/await
+    try {
+      await new Promise<void>((resolve, reject) => {
         this.db!.run(createSharedBracketsTable, err => {
           if (err) {
             console.error('Error creating shared_brackets table:', err);
             reject(err);
-            return;
+          } else {
+            resolve();
           }
         });
+      });
 
+      await new Promise<void>((resolve, reject) => {
         this.db!.run(createTournamentsTable, err => {
           if (err) {
             console.error('Error creating tournaments table:', err);
             reject(err);
-            return;
+          } else {
+            resolve();
           }
         });
+      });
 
+      await new Promise<void>((resolve, reject) => {
         this.db!.run(createIndex, err => {
           if (err) {
             console.error('Error creating index:', err);
@@ -121,7 +143,9 @@ export class Database {
           }
         });
       });
-    });
+    } catch (error) {
+      throw error;
+    }
   }
 
   async saveBracket(
@@ -260,47 +284,33 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized');
 
     const query = `
-      INSERT OR REPLACE INTO tournaments 
+      INSERT OR REPLACE INTO tournaments
       (id, name, status, tournament_type, data, is_shared, share_id, last_modified)
       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `;
 
     return new Promise((resolve, reject) => {
-      // Use transaction for atomic operation
-      const db = this.db!;
-      db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-
-        db.run(
-          query,
-          [
-            tournament.id,
-            tournament.name,
-            tournament.status,
-            tournament.tournamentType,
-            tournament.data,
-            tournament.isShared,
-            tournament.shareId || null,
-          ],
-          function (err) {
-            if (err) {
-              console.error('Error saving tournament:', err);
-              db.run('ROLLBACK');
-              reject(err);
-            } else {
-              db.run('COMMIT', commitErr => {
-                if (commitErr) {
-                  console.error('Error committing tournament save:', commitErr);
-                  reject(commitErr);
-                } else {
-                  console.log('Tournament saved with ID:', tournament.id);
-                  resolve();
-                }
-              });
-            }
+      this.db!.run(
+        query,
+        [
+          tournament.id,
+          tournament.name,
+          tournament.status,
+          tournament.tournamentType,
+          tournament.data,
+          tournament.isShared,
+          tournament.shareId || null,
+        ],
+        function (err) {
+          if (err) {
+            console.error('Error saving tournament:', err);
+            reject(err);
+          } else {
+            console.log('Tournament saved with ID:', tournament.id);
+            resolve();
           }
-        );
-      });
+        }
+      );
     });
   }
 

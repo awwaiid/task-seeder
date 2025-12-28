@@ -1566,6 +1566,7 @@ export class SampleSortTournament {
         if (currentAnchorIndex === 0) {
           // Task is better than best anchor, insert at position 0
           this._insertTaskAtPosition(task, 0);
+          return; // Early exit - task is positioned
         } else {
           // Continue binary search in upper half
           this.insertionState = {
@@ -1580,6 +1581,7 @@ export class SampleSortTournament {
         if (currentAnchorIndex === this.sortedAnchors.length - 1) {
           // Task is worse than worst anchor, insert at end
           this._insertTaskAtPosition(task, this.sortedAnchors.length);
+          return; // Early exit - task is positioned
         } else {
           // Continue binary search in lower half
           this.insertionState = {
@@ -1592,7 +1594,7 @@ export class SampleSortTournament {
       }
 
       // Check if binary search is complete
-      if (this.insertionState.low > this.insertionState.high) {
+      if (this.insertionState && this.insertionState.low > this.insertionState.high) {
         // Insert at the determined position
         const insertPosition =
           winnerUuid === task

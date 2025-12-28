@@ -154,7 +154,12 @@ async function completeTournamentWithTracking(page) {
     });
 
     matchCount++;
-    await page.waitForTimeout(100); // Brief wait for UI update
+    // Wait for UI to update - either next match or results
+    try {
+      await expect(page.locator('h2').filter({ hasText: 'Match' })).toBeVisible({ timeout: 1000 });
+    } catch {
+      await expect(page.locator('text=Your Task Rankings')).toBeVisible({ timeout: 1000 });
+    }
   }
 
   return decisions;
@@ -474,9 +479,6 @@ test.describe('Tournament Ranking Validation', () => {
       path: 'test-results/after-start.png',
       fullPage: true,
     });
-
-    // Wait for tournament to start - be more patient
-    await page.waitForTimeout(2000);
 
     // Should start tournament immediately
     await expect(page.locator('[data-testid="task-matchup"]')).toBeVisible({

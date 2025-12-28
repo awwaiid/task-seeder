@@ -134,7 +134,11 @@ test('upload CSV file and start tournament', async ({ page }) => {
     matchCount++;
 
     // Wait for UI to update - either next match or results
-    await page.waitForTimeout(100);
+    try {
+      await expect(page.locator('[data-testid="tournament-progress"]')).toBeVisible({ timeout: 1000 });
+    } catch {
+      await expect(page.locator('text=Your Task Rankings')).toBeVisible({ timeout: 1000 });
+    }
   }
 
   // Verify tournament is complete

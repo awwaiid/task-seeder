@@ -59,28 +59,21 @@ test.describe('Tournament URL Sharing', () => {
       await firstChoice.click();
 
       // Wait for tournament to be saved to database and get UUID URL
-      // Try multiple times with longer intervals for full test suite
-      let tournamentUrl = setupPage.url();
-      let attempts = 0;
-      const maxAttempts = 10;
-
-      while (
-        !tournamentUrl.includes('/tournament/') &&
-        attempts < maxAttempts
-      ) {
-        await setupPage.waitForTimeout(2000);
-        tournamentUrl = setupPage.url();
-        attempts++;
-      }
-
-      // If database save isn't working, skip this test gracefully
-      if (!tournamentUrl.includes('/tournament/')) {
+      // Wait for URL to change to include /tournament/ pattern
+      try {
+        await setupPage.waitForURL(/\/tournament\/[a-f0-9-]{36}$/, {
+          timeout: 10000,
+        });
+      } catch (error) {
+        // If database save isn't working, skip this test gracefully
         console.log(
           'Database not available for tournament sharing test, skipping...'
         );
         await setupContext.close();
         return;
       }
+
+      const tournamentUrl = setupPage.url();
 
       console.log('Tournament URL captured:', tournamentUrl);
 
@@ -119,8 +112,8 @@ test.describe('Tournament URL Sharing', () => {
         await expect(nextChoice).toBeVisible();
         await nextChoice.click();
 
-        // Verify the tournament progresses (either shows next match or completion)
-        await sharePage.waitForTimeout(1000);
+        // Wait for UI to update - either next match or completion screen
+        await sharePage.waitForLoadState('networkidle');
 
         // Check if we have another match or if tournament completed
         const hasNextMatch = await sharePage
