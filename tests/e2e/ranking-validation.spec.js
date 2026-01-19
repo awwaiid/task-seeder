@@ -22,7 +22,6 @@ async function makeDeterministicChoice(page) {
       .first()
       .locator('.task-title')
       .textContent();
-    console.log(`Only one choice: "${buttonText}"`);
     return buttonText;
   }
 
@@ -51,12 +50,9 @@ async function makeDeterministicChoice(page) {
       return 'Unknown';
     }
   } catch (error) {
-    console.log('Error in makeDeterministicChoice:', error.message);
     await button1.click();
     return 'Error';
   }
-
-  console.log(`Choice between: "${button1Text}" and "${button2Text}"`);
 
   // Always select the alphabetically earlier option for consistent results
   if (button1Text.localeCompare(button2Text) <= 0) {
@@ -136,7 +132,6 @@ async function completeTournamentWithTracking(page) {
         option2 = 'N/A';
       }
     } catch (error) {
-      console.log('Error getting button text:', error.message);
       option1 = 'Error';
       option2 = 'Error';
     }
@@ -189,11 +184,6 @@ async function extractRankings(page) {
 
 // Validate that rankings are consistent with decisions made
 function validateRankingConsistency(decisions, rankings, tournamentType) {
-  console.log(
-    `Validating ${tournamentType} tournament with ${decisions.length} decisions`
-  );
-  console.log('Final rankings:', rankings);
-
   // Basic validation: ensure all tasks are ranked
   const expectedTasks = ['Task A', 'Task B', 'Task C', 'Task D', 'Task E'];
   const rankedTasks = rankings.map(r => r.task);
@@ -234,7 +224,6 @@ function validateRankingConsistency(decisions, rankings, tournamentType) {
 
 // Validate transitivity for QuickSort (if A > B and B > C, then A > C should hold)
 function validateTransitivity(decisions, rankings) {
-  console.log('Validating transitivity in QuickSort results...');
 
   // Create a map of direct comparisons
   const comparisons = new Map();
@@ -316,7 +305,6 @@ test.describe('Tournament Ranking Validation', () => {
     expect(rankings).toHaveLength(5);
     expect(decisions.length).toBe(4); // n-1 matches for single elimination
 
-    console.log('Single Elimination validation passed!');
   });
 
   test('Double Elimination should produce consistent rankings', async ({
@@ -350,7 +338,6 @@ test.describe('Tournament Ranking Validation', () => {
     expect(decisions.length).toBeGreaterThanOrEqual(4); // At least as many as single elimination
     expect(decisions.length).toBeLessThanOrEqual(8); // At most 2n-2 for 5 participants
 
-    console.log('Double Elimination validation passed!');
   });
 
   test('QuickSort should produce consistent and transitive rankings', async ({
@@ -401,7 +388,6 @@ test.describe('Tournament Ranking Validation', () => {
     const taskNames = rankings.map(r => r.task);
     expect(new Set(taskNames).size).toBe(5); // All unique tasks
 
-    console.log('QuickSort validation passed!');
   });
 
   test('Single participant tournament should show appropriate error', async ({
@@ -443,7 +429,6 @@ test.describe('Tournament Ranking Validation', () => {
       page.locator('button:has-text("Start Task Ranking")')
     ).toBeVisible();
 
-    console.log('Single participant edge case validation passed!');
   });
 
   test('Two participant tournament should work correctly', async ({ page }) => {
@@ -502,13 +487,11 @@ test.describe('Tournament Ranking Validation', () => {
     const button1Text = await taskButtons.nth(0).textContent();
     const button2Text = await taskButtons.nth(1).textContent();
 
-    console.log(`Button 1: ${button1Text}, Button 2: ${button2Text}`);
 
     // Extract task names (they should contain "Task A" and "Task B")
     const task1 = button1Text.includes('Task A') ? 'Task A' : 'Task B';
     const task2 = button2Text.includes('Task A') ? 'Task A' : 'Task B';
 
-    console.log(`Task 1: ${task1}, Task 2: ${task2}`);
 
     // Click the button with Task A (alphabetically first)
     if (task1 === 'Task A') {
@@ -531,7 +514,6 @@ test.describe('Tournament Ranking Validation', () => {
     expect(rankings[0].task).toBe('Task A');
     expect(rankings[1].task).toBe('Task B');
 
-    console.log('Two participant edge case validation passed!');
   });
 
   test('Match history should align with final rankings', async ({ page }) => {
@@ -579,6 +561,5 @@ test.describe('Tournament Ranking Validation', () => {
     const lastPlaceLosses = await page.locator('text=LOST').count();
     expect(lastPlaceLosses).toBeGreaterThan(0);
 
-    console.log('Match history validation passed!');
   });
 });

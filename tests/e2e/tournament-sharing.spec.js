@@ -66,16 +66,11 @@ test.describe('Tournament URL Sharing', () => {
         });
       } catch (error) {
         // If database save isn't working, skip this test gracefully
-        console.log(
-          'Database not available for tournament sharing test, skipping...'
-        );
         await setupContext.close();
         return;
       }
 
       const tournamentUrl = setupPage.url();
-
-      console.log('Tournament URL captured:', tournamentUrl);
 
       // Verify it's a UUID format URL
       expect(tournamentUrl).toMatch(/\/tournament\/[a-f0-9-]{36}$/);
@@ -126,8 +121,6 @@ test.describe('Tournament URL Sharing', () => {
 
         // One of these should be true - either next match or completion
         expect(hasNextMatch || isCompleted).toBe(true);
-
-        console.log('Tournament sharing test completed successfully');
       } finally {
         await shareContext.close();
       }
